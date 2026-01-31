@@ -1,0 +1,71 @@
+import { Project, Client, Task, User } from '@/types';
+
+export const mapProject = (p: any): Project => ({
+    id: p._id || p.id,
+    name: p.name,
+    description: p.description,
+    clientId: p.clientId,
+    status: p.status,
+    deadline: new Date(p.dueDate || p.deadline),
+    dueDate: new Date(p.dueDate || p.deadline),
+    budget: p.budget,
+    type: p.type,
+    paymentModel: p.paymentModel,
+    progress: p.progress || 0,
+    startDate: new Date(p.startDate),
+    milestones: p.milestones || [],
+    pmId: p.pmId || 'u2',
+    priority: p.priority,
+    createdAt: new Date(p.createdAt),
+    updatedAt: new Date(p.updatedAt || p.createdAt),
+});
+
+export const mapClient = (c: any): Client => ({
+    id: c._id || c.id,
+    name: c.name,
+    company: c.company,
+    email: c.email,
+    phone: c.phone,
+    address: c.address,
+    type: c.type,
+    status: c.status,
+    industry: c.industry,
+    city: c.city,
+    website: c.website,
+    gstNumber: c.gstNumber,
+    leadSource: c.leadSource,
+    notes: c.notes,
+    createdAt: new Date(c.createdAt),
+    updatedAt: new Date(c.updatedAt || c.createdAt),
+});
+
+export const mapTask = (t: any): Task => ({
+    id: t._id || t.id,
+    title: t.title,
+    description: t.description,
+    projectId: t.projectId,
+    status: t.status,
+    priority: t.priority,
+    assigneeId: t.assigneeId,
+    dueDate: new Date(t.dueDate),
+    estimatedHours: t.estimatedHours,
+    labels: t.labels || [],
+    checklist: t.checklist || [],
+    totalTimeSpent: t.totalTimeSpent,
+    lastStartTime: t.lastStartTime,
+    isTimerRunning: t.isTimerRunning,
+    createdAt: new Date(t.createdAt),
+    updatedAt: new Date(t.updatedAt || t.createdAt),
+});
+
+export const mapUser = (u: any): User => ({
+    id: u._id || u.id,
+    name: u.name,
+    email: u.email,
+    role: u.role,
+    avatar: u.avatar,
+    phone: u.phone,
+    designation: u.designation,
+    department: u.department,
+    createdAt: new Date(u.createdAt),
+});

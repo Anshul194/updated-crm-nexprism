@@ -1,0 +1,148 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Professional Light Theme - Clean, Corporate, High Legibility */
+    --background: 210 40% 98%;
+    /* Slate 50 */
+    --foreground: 222.2 84% 4.9%;
+    /* Slate 950 */
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 84% 4.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 84% 4.9%;
+
+    --primary: 221.2 83.2% 53.3%;
+    /* Blue 600 - Trustworthy & classic */
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 210 40% 96.1%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --accent: 210 40% 96.1%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 210 40% 98%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    --ring: 221.2 83.2% 53.3%;
+
+    --radius: 0.75rem;
+    /* Classic Modern 12px */
+  }
+
+  .dark {
+    /* Professional Dark Theme - Deep Slate, Not Absolute Black */
+    --background: 222.2 47% 11.2%;
+    /* Slate 950 - Rich Deep Navy/Black */
+    --foreground: 0 0% 100%;
+    /* Pure White */
+
+    --card: 217.2 32.6% 17.5%;
+    /* Slate 900 */
+    --card-foreground: 0 0% 100%;
+
+    --popover: 222.2 47% 11.2%;
+    --popover-foreground: 0 0% 100%;
+
+    --primary: 217.2 91.2% 59.8%;
+    /* Blue 500 - Visible on dark */
+    --primary-foreground: 0 0% 100%;
+    /* Force White Text on Buttons */
+
+    --secondary: 217.2 32.6% 17.5%;
+    --secondary-foreground: 0 0% 100%;
+
+    --muted: 217.2 32.6% 17.5%;
+    --muted-foreground: 210 40% 98%;
+    /* Very Bright Slate */
+
+    --accent: 217.2 32.6% 17.5%;
+    --accent-foreground: 0 0% 100%;
+
+    --destructive: 0 62.8% 30.6%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 217.2 32.6% 17.5%;
+    --input: 217.2 32.6% 17.5%;
+    --ring: 224.3 76.3% 48%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  html {
+    overflow-x: hidden;
+    width: 100%;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    font-feature-settings: "cv11", "ss01";
+    /* Clean sans-serif features */
+    overflow-x: hidden;
+    width: 100%;
+  }
+
+  /* Sleek Professional Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    @apply bg-muted-foreground/30 rounded-full hover:bg-muted-foreground/50 transition-colors;
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Glassmorphism Utility for occasional premium feel */
+  .glass {
+    @apply bg-background/80 backdrop-blur-md border-b border-border/50;
+  }
+
+  /* Standardized Dashboard Card for Consistency */
+  .dashboard-card {
+    @apply bg-card border border-border/60 shadow-sm rounded-xl transition-all duration-300 hover:shadow-md;
+  }
+
+  .dashboard-card-header {
+    @apply p-6 border-b border-border/30 flex items-center justify-between;
+  }
+
+  .dashboard-card-title {
+    @apply text-base font-bold flex items-center gap-2;
+  }
+
+  .dashboard-card-content {
+    @apply p-6;
+  }
+}
