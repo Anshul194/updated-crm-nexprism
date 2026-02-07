@@ -300,7 +300,7 @@ export function AttendancePage() {
                     <h2 className="text-2xl font-bold tracking-tight">Team Attendance Sheet</h2>
                     <p className="text-muted-foreground mt-1">Full monthly overview of all team members.</p>
                 </div>
-                <AttendanceSheet users={users} currentUserId={currentUser?.id || (currentUser as any)._id} />
+                <AttendanceSheet users={users} />
             </div>
         </div>
     )

@@ -13,17 +13,45 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Create/Update form
+// Create form
 router.post('/', async (req, res) => {
-    const { id, title, description, fields, isActive } = req.body;
+    const { title, description, fields, isActive } = req.body;
     try {
-        if (id) {
-            const form = await LeadForm.findByIdAndUpdate(id, { title, description, fields, isActive }, { new: true });
-            return res.json(form);
-        }
         const newForm = new LeadForm({ title, description, fields, isActive });
         const savedForm = await newForm.save();
         res.status(201).json(savedForm);
+    } catch (err) {
+        res.status(400).json({ message: err.message });
+    }
+});
+
+// Update form
+router.put('/:id', async (req, res) => {
+    try {
+        const updateData = { ...req.body };
+        delete updateData._id;
+        delete updateData.__v;
+
+        const form = await LeadForm.findByIdAndUpdate(
+            req.params.id,
+            updateData,
+            { new: true }
+        );
+
+        if (!form) return res.status(404).json({ message: 'Form not found' });
+        res.json(form);
+    } catch (err) {
+        console.error('Update Form Error:', err);
+        res.status(400).json({ message: err.message });
+    }
+});
+
+// Delete form
+router.delete('/:id', async (req, res) => {
+    try {
+        const form = await LeadForm.findByIdAndDelete(req.params.id);
+        if (!form) return res.status(404).json({ message: 'Form not found' });
+        res.json({ message: 'Form deleted successfully' });
     } catch (err) {
         res.status(400).json({ message: err.message });
     }

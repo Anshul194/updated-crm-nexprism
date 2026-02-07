@@ -417,10 +417,10 @@ export function TeamPage() {
                 <div className="space-y-6">
                     {/* Members KPIs */}
                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <StatsCard title="Total Members" value={totalMembers} icon={Users} color="#3b82f6" bg="bg-blue-50" />
-                        <StatsCard title="Developers" value={developers} icon={Code} color="#22c55e" bg="bg-green-50" />
-                        <StatsCard title="Project Managers" value={projectManagers} icon={UserCog} color="#8b5cf6" bg="bg-purple-50" />
-                        <StatsCard title="Admins/Owners" value={owners} icon={Briefcase} color="#f59e0b" bg="bg-amber-50" />
+                        <StatsCard title="Total Members" value={totalMembers} icon={Users} color="#3b82f6" bg="bg-blue-500/10" />
+                        <StatsCard title="Developers" value={developers} icon={Code} color="#22c55e" bg="bg-green-500/10" />
+                        <StatsCard title="Project Managers" value={projectManagers} icon={UserCog} color="#8b5cf6" bg="bg-purple-500/10" />
+                        <StatsCard title="Admins/Owners" value={owners} icon={Briefcase} color="#f59e0b" bg="bg-amber-500/10" />
                     </div>
 
                     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">

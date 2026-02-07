@@ -56,6 +56,13 @@ const settingSchema = new mongoose.Schema({
             'employee': ['operational', 'deadlines']
         }
     },
+    payroll: {
+        offDays: { type: [Number], default: [0] }, // 0 for Sunday
+        holidays: [{
+            date: { type: String }, // YYYY-MM-DD
+            label: { type: String }
+        }]
+    },
     updatedAt: { type: Date, default: Date.now }
 });
 

@@ -5,22 +5,23 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
-import { Copy, Plus, Trash2, ExternalLink, Code, CheckCircle2 } from 'lucide-react'
+import { Copy, Plus, Trash2, ExternalLink, Code, CheckCircle2, Settings } from 'lucide-react'
 import { useToast } from '@/hooks/use-toast'
 import axios from 'axios'
 import type { LeadForm } from '@/types'
+import React from 'react'
 
 interface LeadFormBuilderProps {
     isOpen: boolean
     onClose: () => void
     leadForms: LeadForm[]
-    setLeadForms: (forms: LeadForm[]) => void
+    setLeadForms: React.Dispatch<React.SetStateAction<LeadForm[]>>
 }
 
 export function LeadFormBuilder({ isOpen, onClose, leadForms, setLeadForms }: LeadFormBuilderProps) {
     const { toast } = useToast()
     const [isBuildingForm, setIsBuildingForm] = useState(false)
-    const [currentForm, setCurrentForm] = useState<Partial<LeadForm>>({
+    const DEFAULT_FORM: Partial<LeadForm> = {
         title: '',
         description: '',
         fields: [
@@ -28,7 +29,9 @@ export function LeadFormBuilder({ isOpen, onClose, leadForms, setLeadForms }: Le
             { id: 'email', label: 'Email Address', type: 'email', required: true, placeholder: 'your@email.com' }
         ],
         isActive: true
-    })
+    }
+
+    const [currentForm, setCurrentForm] = useState<Partial<LeadForm>>(DEFAULT_FORM)
 
     const [customFieldLabel, setCustomFieldLabel] = useState('')
     const [customFieldType, setCustomFieldType] = useState('text')
@@ -67,17 +70,46 @@ export function LeadFormBuilder({ isOpen, onClose, leadForms, setLeadForms }: Le
             toast({ title: 'Error', description: 'Form title is required', variant: 'destructive' })
             return
         }
+
+        const formId = (currentForm as any)._id;
+
         try {
-            const res = await axios.post('http://localhost:5000/api/lead-forms', currentForm)
-            if ((currentForm as any)._id) {
-                setLeadForms(leadForms.map(f => (f as any)._id === res.data._id ? res.data : f))
+            if (formId) {
+                // UPDATE existing form
+                const res = await axios.put(`http://localhost:5000/api/lead-forms/${formId}`, currentForm)
+                if (res.data) {
+                    setLeadForms((prev: LeadForm[]) => prev.map((f: LeadForm) => (f as any)._id === formId ? res.data : f))
+                    toast({ title: 'Success', description: 'Lead form updated' })
+                }
             } else {
-                setLeadForms([res.data, ...leadForms])
+                // CREATE new form
+                const res = await axios.post('http://localhost:5000/api/lead-forms', currentForm)
+                if (res.data) {
+                    setLeadForms((prev: LeadForm[]) => [res.data, ...prev])
+                    toast({ title: 'Success', description: 'Lead form published' })
+                }
             }
+
             setIsBuildingForm(false)
-            toast({ title: 'Success', description: 'Lead form saved' })
+            setCurrentForm(DEFAULT_FORM)
+        } catch (err: any) {
+            console.error('Save Form Error:', err)
+            toast({
+                title: 'Error',
+                description: err.response?.data?.message || 'Failed to save form',
+                variant: 'destructive'
+            })
+        }
+    }
+
+    const handleDeleteForm = async (id: string) => {
+        if (!confirm('Are you sure you want to delete this form?')) return
+        try {
+            await axios.delete(`http://localhost:5000/api/lead-forms/${id}`)
+            setLeadForms(leadForms.filter(f => (f as any)._id !== id))
+            toast({ title: 'Success', description: 'Lead form deleted' })
         } catch (err) {
-            toast({ title: 'Error', description: 'Failed to save form', variant: 'destructive' })
+            toast({ title: 'Error', description: 'Failed to delete form', variant: 'destructive' })
         }
     }
 
@@ -91,17 +123,17 @@ export function LeadFormBuilder({ isOpen, onClose, leadForms, setLeadForms }: Le
             <DialogContent className="max-w-4xl max-h-[90vh] overflow-hidden flex flex-col">
                 <DialogHeader className="border-b pb-4 flex flex-row items-center justify-between">
                     <div>
-                        <DialogTitle className="text-xl font-bold">Lead Capture Engines</DialogTitle>
-                        <p className="text-xs text-muted-foreground mt-1">Deploy forms and convert traffic into leads automatically.</p>
+                        <DialogTitle className="text-xl font-bold uppercase tracking-tight">Lead Capture Forms</DialogTitle>
+                        <p className="text-xs text-muted-foreground mt-1">Create forms to capture leads from your website automatically.</p>
                     </div>
                     {!isBuildingForm && (
-                        <Button onClick={() => setIsBuildingForm(true)}>
+                        <Button onClick={() => { setCurrentForm(DEFAULT_FORM); setIsBuildingForm(true); }} className="rounded-lg font-bold">
                             <Plus className="mr-2 h-4 w-4" />
                             Create New Form
                         </Button>
                     )}
                     {isBuildingForm && (
-                        <Button variant="ghost" onClick={() => setIsBuildingForm(false)}>Back to List</Button>
+                        <Button variant="ghost" onClick={() => { setIsBuildingForm(false); setCurrentForm(DEFAULT_FORM); }} className="rounded-lg font-semibold">Back to List</Button>
                     )}
                 </DialogHeader>
 
@@ -155,14 +187,15 @@ export function LeadFormBuilder({ isOpen, onClose, leadForms, setLeadForms }: Le
                                     </div>
                                 </div>
 
-                                <div className="space-y-4 pt-4 border-t p-4 bg-muted/20 rounded-xl border border-border/40">
-                                    <h4 className="text-xs font-bold uppercase tracking-wider">Inject Custom Field</h4>
+                                <div className="space-y-4 pt-4 border-t p-4 bg-muted/20 rounded-lg border border-border/40">
+                                    <h4 className="text-xs font-bold uppercase tracking-wider">Add Custom Field</h4>
                                     <div className="grid grid-cols-2 gap-3">
-                                        <Input value={customFieldLabel} onChange={(e) => setCustomFieldLabel(e.target.value)} placeholder="Field Label" className="h-9" />
+                                        <Input value={customFieldLabel} onChange={(e) => setCustomFieldLabel(e.target.value)} placeholder="Field Label (e.g. Budget)" className="h-9 rounded-md" />
                                         <Select value={customFieldType} onValueChange={setCustomFieldType}>
-                                            <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                                            <SelectTrigger className="h-9 rounded-md"><SelectValue /></SelectTrigger>
                                             <SelectContent>
-                                                <SelectItem value="text">Text</SelectItem>
+                                                <SelectItem value="text">Short Text</SelectItem>
+                                                <SelectItem value="number">Number</SelectItem>
                                                 <SelectItem value="email">Email</SelectItem>
                                                 <SelectItem value="select">Dropdown</SelectItem>
                                                 <SelectItem value="textarea">Long Text</SelectItem>
@@ -170,15 +203,15 @@ export function LeadFormBuilder({ isOpen, onClose, leadForms, setLeadForms }: Le
                                         </Select>
                                     </div>
                                     {(customFieldType === 'select') && (
-                                        <Input value={customFieldOptions} onChange={(e) => setCustomFieldOptions(e.target.value)} placeholder="Options (comma separated)" className="h-9" />
+                                        <Input value={customFieldOptions} onChange={(e) => setCustomFieldOptions(e.target.value)} placeholder="Options (comma separated)" className="h-9 rounded-md" />
                                     )}
-                                    <Button onClick={handleAddCustomField} variant="secondary" className="w-full h-9 font-bold text-xs uppercase">
-                                        Attach Field
+                                    <Button onClick={handleAddCustomField} variant="secondary" className="w-full h-9 font-bold text-xs">
+                                        ADD FIELD
                                     </Button>
                                 </div>
 
-                                <Button onClick={handleSaveForm} className="w-full h-11 font-bold text-sm uppercase tracking-widest shadow-lg hover:shadow-primary/20 transition-all">
-                                    Publish Capture Engine
+                                <Button onClick={handleSaveForm} className="w-full h-11 font-bold text-sm uppercase tracking-widest shadow-md">
+                                    Publish Form
                                 </Button>
                             </div>
 
@@ -215,7 +248,7 @@ export function LeadFormBuilder({ isOpen, onClose, leadForms, setLeadForms }: Le
                                     <h3 className="font-bold text-foreground mb-1 group-hover:text-primary transition-colors">{form.title}</h3>
                                     <p className="text-xs text-muted-foreground line-clamp-2 mb-6 h-8">{form.description || 'Standard lead capture form.'}</p>
 
-                                    <div className="grid grid-cols-3 gap-2">
+                                    <div className="grid grid-cols-5 gap-2 mt-4">
                                         <Button variant="outline" size="icon" title="View Public Link" onClick={() => window.open(`${window.location.origin}/f/${form._id}`, '_blank')} className="h-8 w-full border-border/40 hover:bg-primary/5 hover:text-primary transition-all">
                                             <ExternalLink className="h-3.5 w-3.5" />
                                         </Button>
@@ -224,6 +257,12 @@ export function LeadFormBuilder({ isOpen, onClose, leadForms, setLeadForms }: Le
                                         </Button>
                                         <Button variant="outline" size="icon" title="Get Embed Code" onClick={() => copyToClipboard(`<iframe src="${window.location.origin}/f/${form._id}" width="100%" height="800px" frameborder="0"></iframe>`, 'Embed code copied!')} className="h-8 w-full border-border/40 hover:bg-primary/5 hover:text-primary transition-all">
                                             <Code className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button variant="outline" size="icon" title="Edit Form" onClick={() => { setCurrentForm(form); setIsBuildingForm(true); }} className="h-8 w-full border-border/40 hover:bg-amber-500/10 hover:text-amber-600 transition-all">
+                                            <Settings className="h-3.5 w-3.5" />
+                                        </Button>
+                                        <Button variant="outline" size="icon" title="Delete Form" onClick={() => handleDeleteForm(form._id)} className="h-8 w-full border-border/40 hover:bg-destructive/10 hover:text-destructive transition-all">
+                                            <Trash2 className="h-3.5 w-3.5" />
                                         </Button>
                                     </div>
                                 </div>

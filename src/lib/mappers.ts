@@ -1,4 +1,4 @@
-import { Project, Client, Task, User } from '@/types';
+import { Project, Client, Task, User, Invoice, Expense, Lead } from '@/types';
 
 export const mapProject = (p: any): Project => ({
     id: p._id || p.id,
@@ -68,4 +68,51 @@ export const mapUser = (u: any): User => ({
     designation: u.designation,
     department: u.department,
     createdAt: new Date(u.createdAt),
+});
+
+export const mapInvoice = (i: any): Invoice => ({
+    id: i._id || i.id,
+    invoiceNumber: i.invoiceNumber,
+    number: i.invoiceNumber,
+    clientId: i.clientId,
+    projectId: i.projectId,
+    type: i.type,
+    status: i.status,
+    lineItems: i.lineItems || [],
+    subtotal: i.subtotal || 0,
+    tax: i.tax || 0,
+    total: i.total || 0,
+    date: new Date(i.date),
+    dueDate: new Date(i.dueDate),
+    paidDate: i.paidDate ? new Date(i.paidDate) : undefined,
+    createdAt: new Date(i.createdAt),
+    updatedAt: new Date(i.updatedAt || i.createdAt),
+});
+
+export const mapExpense = (e: any): Expense => ({
+    id: e._id || e.id,
+    date: new Date(e.date),
+    amount: e.amount || 0,
+    category: e.category,
+    paymentMode: e.paymentMode,
+    paidBy: e.paidBy,
+    note: e.note,
+    receipt: e.receipt,
+    createdAt: new Date(e.createdAt),
+});
+
+export const mapLead = (l: any): Lead => ({
+    id: l._id || l.id,
+    name: l.name,
+    company: l.company,
+    value: l.value || 0,
+    source: l.source,
+    stage: l.stage,
+    email: l.email,
+    phone: l.phone,
+    customFields: l.customFields || {},
+    activities: l.activities || [],
+    reminder: l.reminder,
+    createdAt: new Date(l.createdAt),
+    updatedAt: new Date(l.updatedAt || l.createdAt),
 });

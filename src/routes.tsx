@@ -29,6 +29,7 @@ import { TicketsPage } from './pages/tickets'
 import { ReportsPage } from './pages/reports'
 import { LeadsPage } from './pages/leads'
 import { ExpensesPage } from './pages/expenses'
+import { SalaryPage } from './pages/salary'
 import { AttendancePage } from './pages/attendance'
 import { PublicLeadForm } from './pages/public/lead-form'
 
@@ -75,6 +76,7 @@ export function AppRoutes() {
                 <Route path="invoices/new" element={<NewInvoicePage />} />
                 <Route path="invoices/:id" element={<InvoiceDetailPage />} />
                 <Route path="expenses" element={<ExpensesPage />} />
+                <Route path="salary" element={<SalaryPage />} />
 
                 {/* Support & Analysis */}
                 <Route path="tickets" element={<TicketsPage />} />

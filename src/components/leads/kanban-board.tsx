@@ -2,7 +2,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { MoreHorizontal, Trash2, ExternalLink } from 'lucide-react'
+import { MoreHorizontal, Trash2, ExternalLink, Users } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
 import type { Lead, PipelineStage } from '@/types'
 
@@ -19,8 +19,8 @@ export function KanbanBoard({ stages, leads, onDragStart, onDrop, onLeadClick, o
     const handleDragOver = (e: React.DragEvent) => e.preventDefault()
 
     return (
-        <div className="flex-1 overflow-x-auto overflow-y-hidden pb-4 scrollbar-thin">
-            <div className="flex h-full gap-6 px-1" style={{ minWidth: `${stages.length * 320}px` }}>
+        <div className="flex-1 overflow-x-auto overflow-y-hidden pb-6">
+            <div className="flex h-full gap-4 px-4" style={{ minWidth: `${stages.length * 300}px` }}>
                 {stages.map((stage) => {
                     const stageLeads = leads.filter(l => l.stage === stage.id)
                     const stageValue = stageLeads.reduce((sum, l) => sum + (l.value || 0), 0)
@@ -28,20 +28,21 @@ export function KanbanBoard({ stages, leads, onDragStart, onDrop, onLeadClick, o
                     return (
                         <div
                             key={stage.id}
-                            className="w-80 flex flex-col h-full bg-muted/20 rounded-2xl border border-border/40 transition-colors hover:bg-muted/30"
+                            className="w-[280px] flex flex-col h-full bg-muted/20 rounded-xl border border-border/40 transition-colors"
                             onDragOver={handleDragOver}
                             onDrop={() => onDrop(stage.id)}
                         >
                             {/* Stage Header */}
-                            <div className="p-4 border-b bg-muted/40 backdrop-blur-sm rounded-t-2xl">
-                                <div className="flex items-center justify-between mb-1.5">
-                                    <h3 className="font-bold text-sm tracking-tight text-foreground uppercase">{stage.label}</h3>
-                                    <Badge variant="secondary" className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-background/50">{stageLeads.length}</Badge>
+                            <div className="p-4 border-b border-border/20">
+                                <div className="flex items-center justify-between mb-2">
+                                    <div className="flex items-center gap-2">
+                                        <div className={`w-2 h-2 rounded-full ${stage.color}`} />
+                                        <h3 className="font-bold text-xs uppercase tracking-wider">{stage.label}</h3>
+                                    </div>
+                                    <Badge variant="secondary" className="text-[10px] font-semibold px-2 py-0 h-5 min-w-[20px] justify-center">{stageLeads.length}</Badge>
                                 </div>
-                                <div className={`h-1.5 w-full rounded-full ${stage.color} opacity-40 mb-3`} />
-                                <div className="text-[10px] text-muted-foreground font-bold uppercase tracking-widest flex justify-between">
-                                    <span>Allocated Value</span>
-                                    <span className="text-foreground">{formatCurrency(stageValue)}</span>
+                                <div className="text-[10px] text-muted-foreground font-medium">
+                                    Total: <span className="text-foreground font-semibold">{formatCurrency(stageValue)}</span>
                                 </div>
                             </div>
 
@@ -53,37 +54,41 @@ export function KanbanBoard({ stages, leads, onDragStart, onDrop, onLeadClick, o
                                         draggable
                                         onDragStart={() => onDragStart(lead)}
                                         onClick={() => onLeadClick(lead)}
-                                        className="border-border/60 shadow-sm hover:shadow-md hover:border-primary/40 transition-all cursor-grab active:cursor-grabbing group group-hover:bg-accent/5"
+                                        className="dashboard-card border-none cursor-grab active:cursor-grabbing group"
                                     >
-                                        <CardContent className="p-4">
+                                        <CardContent className="p-4 relative">
                                             <div className="flex justify-between items-start mb-2">
-                                                <div className="font-bold text-sm text-foreground line-clamp-1 group-hover:text-primary transition-colors">{lead.company}</div>
-                                                <DropdownMenu modal={false}>
-                                                    <DropdownMenuTrigger asChild>
-                                                        <Button variant="ghost" size="icon" className="h-7 w-7 opacity-0 group-hover:opacity-100 transition-opacity" onClick={(e) => e.stopPropagation()}>
-                                                            <MoreHorizontal className="h-4 w-4" />
-                                                        </Button>
-                                                    </DropdownMenuTrigger>
-                                                    <DropdownMenuContent align="end" className="w-40 font-sans">
-                                                        <DropdownMenuItem className="text-xs font-semibold" onClick={(e) => { e.stopPropagation(); onLeadClick(lead); }}>
-                                                            <ExternalLink className="mr-2 h-3.5 w-3.5" /> Open Record
-                                                        </DropdownMenuItem>
-                                                        <DropdownMenuItem className="text-xs font-semibold text-destructive" onClick={(e) => { e.stopPropagation(); onDeleteLead(lead.id); }}>
-                                                            <Trash2 className="mr-2 h-3.5 w-3.5" /> Expunge Lead
-                                                        </DropdownMenuItem>
-                                                    </DropdownMenuContent>
-                                                </DropdownMenu>
+                                                <div className="font-bold text-sm text-foreground tracking-tight group-hover:text-primary transition-colors pr-6">
+                                                    {lead.company}
+                                                </div>
+                                                <div className="absolute top-3 right-3">
+                                                    <DropdownMenu modal={false}>
+                                                        <DropdownMenuTrigger asChild>
+                                                            <Button variant="ghost" size="icon" className="h-7 w-7 rounded-md opacity-0 group-hover:opacity-100 transition-opacity hover:bg-muted" onClick={(e) => e.stopPropagation()}>
+                                                                <MoreHorizontal className="h-4 w-4" />
+                                                            </Button>
+                                                        </DropdownMenuTrigger>
+                                                        <DropdownMenuContent align="end" className="w-40">
+                                                            <DropdownMenuItem className="text-xs cursor-pointer" onClick={(e) => { e.stopPropagation(); onLeadClick(lead); }}>
+                                                                <ExternalLink className="mr-2 h-3 w-3" /> View Details
+                                                            </DropdownMenuItem>
+                                                            <DropdownMenuItem className="text-xs text-destructive focus:text-destructive cursor-pointer" onClick={(e) => { e.stopPropagation(); onDeleteLead(lead.id); }}>
+                                                                <Trash2 className="mr-2 h-3 w-3" /> Delete Lead
+                                                            </DropdownMenuItem>
+                                                        </DropdownMenuContent>
+                                                    </DropdownMenu>
+                                                </div>
                                             </div>
 
                                             <div className="space-y-3">
-                                                <div className="text-xs text-muted-foreground font-medium flex items-center gap-2">
-                                                    <div className="h-1.5 w-1.5 rounded-full bg-muted-foreground/30" />
+                                                <div className="text-[11px] text-muted-foreground font-medium flex items-center gap-2">
+                                                    <Users className="h-3 w-3" />
                                                     {lead.name}
                                                 </div>
-                                                <div className="flex items-center justify-between pt-2 border-t border-border/30">
-                                                    <span className="text-sm font-black text-foreground tracking-tight">{formatCurrency(lead.value)}</span>
+                                                <div className="flex items-center justify-between pt-3 border-t border-border/10">
+                                                    <span className="text-base font-bold text-foreground">{formatCurrency(lead.value)}</span>
                                                     {lead.source && (
-                                                        <Badge variant="outline" className="text-[9px] uppercase font-bold px-1.5 py-0 border-border/60 text-muted-foreground">
+                                                        <Badge variant="outline" className="text-[9px] font-medium px-1.5 py-0 border-primary/20 bg-primary/5 text-primary rounded-md">
                                                             {lead.source}
                                                         </Badge>
                                                     )}
@@ -93,8 +98,8 @@ export function KanbanBoard({ stages, leads, onDragStart, onDrop, onLeadClick, o
                                     </Card>
                                 ))}
                                 {stageLeads.length === 0 && (
-                                    <div className="flex items-center justify-center py-12 border-2 border-dashed border-border/30 rounded-xl opacity-40">
-                                        <span className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">Empty Pipeline</span>
+                                    <div className="flex flex-col items-center justify-center py-10 border-2 border-dashed border-border/40 rounded-lg bg-muted/5">
+                                        <span className="text-[10px] font-medium text-muted-foreground">No leads in this stage</span>
                                     </div>
                                 )}
                             </div>

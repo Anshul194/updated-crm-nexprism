@@ -51,6 +51,18 @@ router.post('/', async (req, res) => {
     try {
         const newTask = await task.save();
         await updateProjectProgress(newTask.projectId);
+
+        // Trigger Notification
+        try {
+            const Notification = require('../models/Notification');
+            await Notification.create({
+                title: 'New Task Assigned',
+                message: `A new task "${newTask.title}" has been created.`,
+                type: 'new_task',
+                relatedId: newTask._id
+            });
+        } catch (nErr) { console.error('Notif Error:', nErr); }
+
         res.status(201).json(newTask);
     } catch (err) {
         res.status(400).json({ message: err.message });

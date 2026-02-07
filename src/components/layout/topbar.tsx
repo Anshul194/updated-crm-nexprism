@@ -20,6 +20,8 @@ import { useTheme } from '../theme-provider'
 import { useAppStore } from '@/store'
 import { useNavigate } from 'react-router-dom'
 import { cn } from '@/lib/utils'
+import { Users, Briefcase, CheckSquare, TrendingUp, X } from 'lucide-react'
+import { Badge } from '@/components/ui/badge'
 
 interface TopbarProps {
     onMenuClick: () => void
@@ -40,7 +42,65 @@ const PAYMENT_MODES = ['UPI', 'Cash', 'Bank Transfer', 'Card']
 export function Topbar({ onMenuClick }: TopbarProps) {
     const { theme, setTheme } = useTheme()
     const navigate = useNavigate()
-    const { currentUser, notifications, markNotificationRead, markAllNotificationsRead } = useAppStore()
+    const { currentUser, notifications, markNotificationRead, markAllNotificationsRead, leads, projects, tasks, clients } = useAppStore()
+
+    // Global Search State
+    const [searchQuery, setSearchQuery] = useState('')
+    const [searchResults, setSearchResults] = useState<{ type: string, id: string, title: string, subtitle?: string, link: string }[]>([])
+    const [isSearchFocused, setIsSearchFocused] = useState(false)
+    const searchContainerRef = useRef<HTMLDivElement>(null)
+
+    // Handle Search Logic
+    useEffect(() => {
+        if (!searchQuery.trim()) {
+            setSearchResults([])
+            return
+        }
+
+        const query = searchQuery.toLowerCase()
+        const results: any[] = []
+
+        // Search Leads
+        leads.forEach(l => {
+            if (l.name.toLowerCase().includes(query) || l.company.toLowerCase().includes(query)) {
+                results.push({ type: 'Lead', id: l.id, title: l.name, subtitle: l.company, link: '/leads', icon: TrendingUp })
+            }
+        })
+
+        // Search Projects
+        projects.forEach(p => {
+            if (p.name.toLowerCase().includes(query)) {
+                results.push({ type: 'Project', id: p.id, title: p.name, subtitle: p.type, link: `/projects/${p.id}`, icon: Briefcase })
+            }
+        })
+
+        // Search Tasks
+        tasks.forEach(t => {
+            if (t.title.toLowerCase().includes(query)) {
+                results.push({ type: 'Task', id: t.id, title: t.title, subtitle: t.status, link: '/tasks', icon: CheckSquare })
+            }
+        })
+
+        // Search Clients
+        clients.forEach(c => {
+            if (c.name.toLowerCase().includes(query) || c.company.toLowerCase().includes(query)) {
+                results.push({ type: 'Client', id: c.id, title: c.name, subtitle: c.company, link: `/clients/${c.id}`, icon: Users })
+            }
+        })
+
+        setSearchResults(results.slice(0, 8)) // Limit results
+    }, [searchQuery, leads, projects, tasks, clients])
+
+    // Close on click outside
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (searchContainerRef.current && !searchContainerRef.current.contains(event.target as Node)) {
+                setIsSearchFocused(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
 
     const unreadCount = notifications.filter((n) => !n.read).length
     const initials = currentUser?.name ? currentUser.name.charAt(0).toUpperCase() : 'U'
@@ -137,7 +197,7 @@ export function Topbar({ onMenuClick }: TopbarProps) {
             </Button>
 
             {/* Premium Search Bar */}
-            <div className="hidden md:flex flex-1 max-w-xl">
+            <div className="hidden md:flex flex-1 max-w-xl relative" ref={searchContainerRef}>
                 <div className="relative w-full group">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
                         <Search className="h-4 w-4 text-muted-foreground group-focus-within:text-primary transition-colors" />
@@ -146,13 +206,73 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                         id="global-search"
                         placeholder="Search for leads, projects, or tasks..."
                         className="pl-10 h-10 w-full bg-secondary/30 border-secondary-foreground/10 focus-visible:ring-1 focus-visible:ring-primary/30 focus-visible:bg-background transition-all rounded-xl"
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                        onFocus={() => setIsSearchFocused(true)}
                     />
-                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none">
-                        <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100">
-                            <span className="text-xs">⌘</span>K
-                        </kbd>
+                    <div className="absolute inset-y-0 right-0 pr-3 flex items-center">
+                        {searchQuery ? (
+                            <button onClick={() => setSearchQuery('')} className="p-1 hover:bg-muted rounded text-muted-foreground">
+                                <X className="h-3 w-3" />
+                            </button>
+                        ) : (
+                            <kbd className="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-border bg-muted px-1.5 font-mono text-[10px] font-medium text-muted-foreground opacity-100 pointer-events-none">
+                                <span className="text-xs">⌘</span>K
+                            </kbd>
+                        )}
                     </div>
                 </div>
+
+                {/* Search Results Dropdown */}
+                {isSearchFocused && (searchQuery || searchResults.length > 0) && (
+                    <div className="absolute top-12 left-0 w-full bg-popover/95 backdrop-blur-md border border-border/50 rounded-2xl shadow-2xl z-50 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                        <div className="p-2 border-b border-border/30 bg-muted/20 flex justify-between items-center px-4">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-muted-foreground">Quick Results</span>
+                            <span className="text-[10px] text-muted-foreground">{searchResults.length} matches found</span>
+                        </div>
+                        <div className="max-h-[400px] overflow-y-auto p-2">
+                            {searchResults.length === 0 && searchQuery && (
+                                <div className="p-8 text-center">
+                                    <Search className="h-10 w-10 text-muted-foreground/20 mx-auto mb-2" />
+                                    <p className="text-sm text-muted-foreground font-medium">No results found for "{searchQuery}"</p>
+                                </div>
+                            )}
+
+                            {searchResults.map((res: any) => (
+                                <div
+                                    key={`${res.type}-${res.id}`}
+                                    onClick={() => {
+                                        navigate(res.link)
+                                        setIsSearchFocused(false)
+                                        setSearchQuery('')
+                                    }}
+                                    className="flex items-center gap-3 p-3 rounded-xl hover:bg-primary/10 cursor-pointer group transition-all border border-transparent hover:border-primary/10 mb-1"
+                                >
+                                    <div className="h-10 w-10 rounded-xl bg-secondary flex items-center justify-center text-primary group-hover:bg-primary group-hover:text-white transition-colors">
+                                        <res.icon className="h-5 w-5" />
+                                    </div>
+                                    <div className="flex flex-col flex-1 truncate">
+                                        <div className="flex items-center gap-2">
+                                            <span className="text-sm font-bold truncate group-hover:text-primary transition-colors">{res.title}</span>
+                                            <Badge variant="outline" className="text-[8px] h-4 uppercase font-black py-0 px-1.5 opacity-60 group-hover:opacity-100">{res.type}</Badge>
+                                        </div>
+                                        <span className="text-xs text-muted-foreground truncate">{res.subtitle}</span>
+                                    </div>
+                                    <Button variant="ghost" size="icon" className="h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Plus className="h-4 w-4 rotate-[135deg]" /> {/* Arrow icon substitute */}
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                        {searchQuery && (
+                            <div className="p-3 bg-muted/10 border-t border-border/30 flex justify-center">
+                                <Button variant="link" size="sm" className="text-xs text-muted-foreground hover:text-primary">
+                                    Press Enter for advanced search
+                                </Button>
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             {/* Mobile Search Icon Only */}
@@ -201,12 +321,20 @@ export function Topbar({ onMenuClick }: TopbarProps) {
                             <div className="max-h-[300px] overflow-y-auto p-1">
                                 {notifications.length === 0 && <div className="p-8 text-center text-sm text-muted-foreground">No new notifications</div>}
                                 {notifications.map(n => (
-                                    <DropdownMenuItem key={n.id} className="cursor-pointer rounded-lg p-3 m-1 focus:bg-muted/50" onClick={() => markNotificationRead(n.id)}>
-                                        <div className="flex gap-3 items-start">
-                                            <div className="h-2 w-2 mt-1.5 rounded-full bg-primary shrink-0 opacity-100" />
-                                            <div className="flex flex-col gap-1">
-                                                <span className="font-semibold text-sm leading-none">{n.title}</span>
-                                                <span className="text-xs text-muted-foreground line-clamp-2">{n.message}</span>
+                                    <DropdownMenuItem key={n.id} className={cn(
+                                        "cursor-pointer rounded-lg p-3 m-1 focus:bg-muted/50 border border-transparent transition-all",
+                                        !n.read ? "bg-primary/5 border-primary/10" : "opacity-75"
+                                    )} onClick={() => markNotificationRead(n.id)}>
+                                        <div className="flex gap-3 items-start w-full">
+                                            {!n.read && <div className="h-2 w-2 mt-1.5 rounded-full bg-primary shrink-0 animate-pulse" />}
+                                            <div className="flex flex-col gap-1 flex-1 overflow-hidden">
+                                                <div className="flex justify-between items-start gap-2">
+                                                    <span className={cn("text-sm leading-none truncate", !n.read ? "font-bold text-foreground" : "font-semibold text-muted-foreground")}>{n.title}</span>
+                                                    <span className="text-[10px] text-muted-foreground/70 shrink-0 mt-0.5">
+                                                        {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                                    </span>
+                                                </div>
+                                                <span className="text-xs text-muted-foreground line-clamp-2 leading-tight">{n.message}</span>
                                             </div>
                                         </div>
                                     </DropdownMenuItem>

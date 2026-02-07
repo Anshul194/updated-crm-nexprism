@@ -98,7 +98,8 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
         { name: 'Time Tracking', href: '/time', icon: Clock },
         { name: 'Invoices', href: '/invoices', icon: FileText },
         { name: 'Leads', href: '/leads', icon: Target },
-        { name: 'Expenses', href: '/expenses', icon: Wallet }, // Replaced TrendingDown
+        { name: 'Expenses', href: '/expenses', icon: Wallet },
+        { name: 'Payroll', href: '/salary', icon: Wallet },
         { name: 'Support Tickets', href: '/tickets', icon: LifeBuoy },
         { name: 'Reports', href: '/reports', icon: BarChart },
         { name: 'Files', href: '/files', icon: FolderOpen },
@@ -119,6 +120,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
             case 'Invoices': return !!p.finance?.view
             case 'Sales Pipeline': return !!p.clients?.view
             case 'Expenses': return !!p.finance?.view
+            case 'Payroll': return true // Everyone can see their own
             case 'Support Tickets': return !!p.tasks?.view
             case 'Reports': return !!p.finance?.view
             case 'Files': return !!p.projects?.view

@@ -55,7 +55,9 @@ const routes = {
     settings: require('./routes/settingRoutes'),
     auth: require('./routes/authRoutes'),
     'lead-forms': require('./routes/leadFormRoutes'),
-    attendance: require('./routes/attendanceRoutes')
+    attendance: require('./routes/attendanceRoutes'),
+    payroll: require('./routes/payrollRoutes'),
+    notifications: require('./routes/notificationRoutes')
 };
 
 Object.entries(routes).forEach(([path, handler]) => {

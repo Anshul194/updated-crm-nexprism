@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import axios from 'axios'
 import type {
     User,
     Client,
@@ -91,8 +92,9 @@ interface AppState {
     addActivity: (activity: Activity) => void
 
     // Notification actions
-    markNotificationRead: (id: string) => void
-    markAllNotificationsRead: () => void
+    setNotifications: (notifications: Notification[]) => void
+    markNotificationRead: (id: string) => Promise<void>
+    markAllNotificationsRead: () => Promise<void>
     addNotification: (notification: Notification) => void
 }
 
@@ -348,15 +350,28 @@ export const useAppStore = create<AppState>((set) => ({
     })),
 
     // Notification actions
-    markNotificationRead: (id) => set((state) => ({
-        notifications: state.notifications.map((n) =>
-            n.id === id ? { ...n, read: true } : n
-        ),
-    })),
+    setNotifications: (notifications) => set({ notifications }),
 
-    markAllNotificationsRead: () => set((state) => ({
-        notifications: state.notifications.map((n) => ({ ...n, read: true })),
-    })),
+    markNotificationRead: async (id) => {
+        try {
+            await axios.put(`http://localhost:5000/api/notifications/${id}/read`)
+            set((state) => ({
+                notifications: state.notifications.map((n) =>
+                    n.id === id ? { ...n, read: true } : n
+                ),
+            }))
+        } catch (err) { console.error(err) }
+    },
+
+    markAllNotificationsRead: async () => {
+        try {
+            await axios.put('http://localhost:5000/api/notifications/mark-all-read')
+            set((state) => ({
+                notifications: state.notifications.map((n) => ({ ...n, read: true })),
+            }))
+        } catch (err) { console.error(err) }
+    },
+
     addNotification: (notification) => set((state) => ({
         notifications: [notification, ...state.notifications],
     })),

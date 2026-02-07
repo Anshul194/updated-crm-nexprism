@@ -11,8 +11,10 @@ import {
     Megaphone, Globe, Car, Coffee, MoreHorizontal, Trash2
 } from 'lucide-react'
 import { formatCurrency, formatDate } from '@/lib/utils'
-import axios from 'axios'
+import api from '@/lib/api-client'
+import { mapExpense } from '@/lib/mappers'
 import { useToast } from '@/hooks/use-toast'
+import { useAppStore } from '@/store'
 
 // Fixed Categories (Admin only can add new)
 const EXPENSE_CATEGORIES = [
@@ -62,6 +64,7 @@ type Expense = {
 
 export function ExpensesPage() {
     const { toast } = useToast()
+    const { setExpenses: setGlobalExpenses } = useAppStore()
     const [expenses, setExpenses] = useState<Expense[]>([])
     const [isDialogOpen, setIsDialogOpen] = useState(false)
     const [viewExpenseDialogOpen, setViewExpenseDialogOpen] = useState(false)
@@ -69,9 +72,16 @@ export function ExpensesPage() {
     const [searchQuery, setSearchQuery] = useState('')
     const [filterCategory, setFilterCategory] = useState('')
     const [filterPaymentMode, setFilterPaymentMode] = useState('')
+    const formatDateLocal = (date: Date) => {
+        const y = date.getFullYear()
+        const m = String(date.getMonth() + 1).padStart(2, '0')
+        const d = String(date.getDate()).padStart(2, '0')
+        return `${y}-${m}-${d}`
+    }
+
     const [dateRange, setDateRange] = useState({
-        start: '2026-01-01',
-        end: '2026-01-31'
+        start: formatDateLocal(new Date(new Date().getFullYear(), new Date().getMonth(), 1)),
+        end: formatDateLocal(new Date())
     })
 
     const fileInputRef = useRef<HTMLInputElement>(null)
@@ -89,7 +99,7 @@ export function ExpensesPage() {
     }
 
     const [newExpense, setNewExpense] = useState({
-        date: new Date().toISOString().split('T')[0],
+        date: formatDateLocal(new Date()),
         amount: '',
         category: '',
         paymentMode: 'UPI',
@@ -111,19 +121,17 @@ export function ExpensesPage() {
     // Fetch Expenses
     const fetchData = async () => {
         try {
-            const res = await axios.get('http://localhost:5000/api/expenses')
-            const mapped = res.data.map((e: any) => ({
-                id: e._id,
-                date: e.date.split('T')[0],
-                amount: e.amount,
-                category: e.category,
-                paymentMode: e.paymentMode,
-                paidBy: e.paidBy,
-                note: e.note || '',
-                receipt: e.receipt,
-                createdAt: e.createdAt
-            }))
-            setExpenses(mapped)
+            const res = await api.get('/expenses')
+            const mapped = res.data.map((e: any) => {
+                const mappedExp = mapExpense(e)
+                return {
+                    ...mappedExp,
+                    date: mappedExp.date.toISOString().split('T')[0] // Keep string for UI
+                }
+            })
+            setExpenses(mapped as any)
+            // Support global store too
+            setGlobalExpenses(res.data.map(mapExpense))
         } catch (error) {
             console.error("Failed to fetch expenses", error)
             toast({ title: "Error", description: "Failed to load expenses", variant: "destructive" })
@@ -134,9 +142,21 @@ export function ExpensesPage() {
         fetchData()
     }, [])
 
-    // Add Expense
     const handleAddExpense = async () => {
-        if (!newExpense.amount || !newExpense.category) return
+        if (!newExpense.amount) {
+            toast({ title: "Missing Amount", description: "Please enter an expense amount", variant: "destructive" })
+            return
+        }
+        if (!newExpense.category) {
+            toast({ title: "Missing Category", description: "Please select a category", variant: "destructive" })
+            return
+        }
+
+        const amount = parseFloat(newExpense.amount)
+        if (isNaN(amount) || amount <= 0) {
+            toast({ title: "Invalid Amount", description: "Amount must be greater than zero", variant: "destructive" })
+            return
+        }
 
         try {
             const payload = {
@@ -149,10 +169,10 @@ export function ExpensesPage() {
                 receipt: newExpense.receipt
             }
 
-            await axios.post('http://localhost:5000/api/expenses', payload)
+            await api.post('/expenses', payload)
 
             setNewExpense({
-                date: new Date().toISOString().split('T')[0],
+                date: formatDateLocal(new Date()),
                 amount: '',
                 category: '',
                 paymentMode: 'UPI',
@@ -163,16 +183,17 @@ export function ExpensesPage() {
             setIsDialogOpen(false)
             fetchData()
             toast({ description: "Expense added successfully" })
-        } catch (error) {
+        } catch (error: any) {
             console.error("Failed to add expense", error)
-            toast({ title: "Error", description: "Failed to add expense", variant: "destructive" })
+            const message = error.response?.data?.message || error.message || "Failed to add expense"
+            toast({ title: "Error", description: message, variant: "destructive" })
         }
     }
 
     // Delete Expense
     const handleDeleteExpense = async (id: string) => {
         try {
-            await axios.delete(`http://localhost:5000/api/expenses/${id}`)
+            await api.delete(`/expenses/${id}`)
             setExpenses(prev => prev.filter(e => e.id !== id))
             toast({ description: "Expense deleted successfully" })
             if (selectedExpense?.id === id) setViewExpenseDialogOpen(false)

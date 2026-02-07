@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, Filter, Users, UserCheck, UserX, Building2 } from 'lucide-react'
+import { Plus, Users, UserCheck, UserX, Building2 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { Input } from '@/components/ui/input'
+
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { useNavigate } from 'react-router-dom'
@@ -74,15 +74,7 @@ export function ClientsPage() {
                 <StatsCard title="Retainer" value={retainerClients} icon={Building2} color="#8b5cf6" bg="bg-purple-50" />
             </div>
 
-            <div className="flex items-center gap-4">
-                <div className="relative flex-1 max-w-sm">
-                    <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
-                    <Input placeholder="Search clients..." className="pl-10" />
-                </div>
-                <Button variant="outline">
-                    <Filter className="mr-2 h-4 w-4" /> Filter
-                </Button>
-            </div>
+
 
             {clients.length === 0 && !error ? (
                 <EmptyState

@@ -71,6 +71,9 @@ router.put('/', async (req, res) => {
         if (req.body.dashboardLayouts) {
             settings.dashboardLayouts = req.body.dashboardLayouts;
         }
+        if (req.body.payroll) {
+            settings.payroll = { ...settings.payroll.toObject(), ...req.body.payroll };
+        }
 
         settings.updatedAt = Date.now();
         const updated = await settings.save();

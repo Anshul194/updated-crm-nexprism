@@ -14,16 +14,16 @@ interface LeadsListProps {
 
 export function LeadsList({ leads, stages, onLeadClick, onDeleteLead }: LeadsListProps) {
     return (
-        <div className="flex-1 bg-card border border-border/60 rounded-2xl overflow-hidden animate-in fade-in slide-in-from-bottom-4 duration-500">
+        <div className="flex-1 bg-card border border-border/60 rounded-xl overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
                 <table className="w-full text-left">
-                    <thead className="bg-muted/40 text-[10px] uppercase font-bold tracking-widest text-muted-foreground border-b border-border/40">
+                    <thead className="bg-muted/40 text-[11px] uppercase font-bold tracking-wider text-muted-foreground border-b border-border/40">
                         <tr>
-                            <th className="px-6 py-4">Organizational Unit</th>
-                            <th className="px-6 py-4">Primary Stakeholder</th>
-                            <th className="px-6 py-4">Projected Valuation</th>
-                            <th className="px-6 py-4">Pipeline Phase</th>
-                            <th className="px-6 py-4 text-right">Operations</th>
+                            <th className="px-6 py-4">Company</th>
+                            <th className="px-6 py-4">Contact</th>
+                            <th className="px-6 py-4">Value</th>
+                            <th className="px-6 py-4">Stage</th>
+                            <th className="px-6 py-4 text-right">Actions</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-border/30 text-sm">
@@ -33,17 +33,17 @@ export function LeadsList({ leads, stages, onLeadClick, onDeleteLead }: LeadsLis
                                 <tr key={lead.id} className="hover:bg-accent/5 transition-colors group cursor-pointer" onClick={() => onLeadClick(lead)}>
                                     <td className="px-6 py-4">
                                         <div className="font-bold text-foreground group-hover:text-primary transition-colors">{lead.company}</div>
-                                        <div className="text-[10px] text-muted-foreground font-semibold mt-0.5">{lead.source}</div>
+                                        <div className="text-[10px] text-muted-foreground font-medium mt-0.5">{lead.source}</div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="font-medium text-muted-foreground">{lead.name}</div>
-                                        <div className="text-[10px] text-muted-foreground opacity-70">{lead.email}</div>
+                                        <div className="font-semibold text-foreground">{lead.name}</div>
+                                        <div className="text-[10px] text-muted-foreground">{lead.email}</div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <div className="font-black text-foreground tracking-tight">{formatCurrency(lead.value)}</div>
+                                        <div className="font-bold text-foreground">{formatCurrency(lead.value)}</div>
                                     </td>
                                     <td className="px-6 py-4">
-                                        <Badge variant="secondary" className={`rounded-md font-bold text-[9px] uppercase tracking-widest ${stage?.color?.replace('bg-', 'text-') || ''} bg-opacity-10 border-none`}>
+                                        <Badge variant="secondary" className={`rounded-md font-bold text-[9px] uppercase tracking-wider ${stage?.color?.replace('bg-', 'text-') || ''} bg-opacity-10 border-none`}>
                                             {stage?.label || lead.stage}
                                         </Badge>
                                     </td>
@@ -58,9 +58,9 @@ export function LeadsList({ leads, stages, onLeadClick, onDeleteLead }: LeadsLis
                                                         <MoreHorizontal className="h-4 w-4" />
                                                     </Button>
                                                 </DropdownMenuTrigger>
-                                                <DropdownMenuContent align="end" className="font-sans">
+                                                <DropdownMenuContent align="end">
                                                     <DropdownMenuItem className="text-xs font-semibold text-destructive" onClick={() => onDeleteLead(lead.id)}>
-                                                        <Trash2 className="mr-2 h-4 w-4" /> Expunge Lead
+                                                        <Trash2 className="mr-2 h-4 w-4" /> Delete Lead
                                                     </DropdownMenuItem>
                                                 </DropdownMenuContent>
                                             </DropdownMenu>
@@ -71,8 +71,8 @@ export function LeadsList({ leads, stages, onLeadClick, onDeleteLead }: LeadsLis
                         })}
                         {leads.length === 0 && (
                             <tr>
-                                <td colSpan={5} className="px-6 py-20 text-center text-muted-foreground font-bold uppercase tracking-widest opacity-40">
-                                    No data available in current view
+                                <td colSpan={5} className="px-6 py-12 text-center text-muted-foreground font-medium">
+                                    No leads found in this view
                                 </td>
                             </tr>
                         )}

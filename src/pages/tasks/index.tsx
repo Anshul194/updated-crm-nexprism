@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Search, CheckCircle2, Circle, Clock, AlertTriangle, Calendar, CheckSquare, Settings, Trash2, LayoutGrid, List as ListIcon, ArrowUp, ArrowDown, Upload, FileText, User as UserIcon, Briefcase } from 'lucide-react'
+import { Plus, CheckCircle2, Circle, Clock, AlertTriangle, Calendar, CheckSquare, Settings, Trash2, LayoutGrid, List as ListIcon, ArrowUp, ArrowDown, Upload, FileText, User as UserIcon, Briefcase } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent } from '@/components/ui/card'
@@ -44,8 +44,14 @@ const COLOR_OPTIONS = [
 
 import { TaskBoardCardV2 } from '@/components/tasks/task-board-card-v2'
 
+import { useSearchParams } from 'react-router-dom'
+
 export function TasksPage() {
     const { toast } = useToast()
+    const [searchParams, setSearchParams] = useSearchParams()
+    const initialPriority = searchParams.get('priority') || 'all'
+    const initialFilter = searchParams.get('filter') || 'all'
+
     const { tasks: storeTasks, users, projects, setTasks: setStoreTasks, setUsers, setProjects, addTask: addStoreTask, updateTask: updateStoreTask } = useAppStore()
 
     const [tasks, setTasks] = useState(storeTasks)
@@ -57,8 +63,9 @@ export function TasksPage() {
     const [selectedTask, setSelectedTask] = useState<any>(null)
     const [taskToDelete, setTaskToDelete] = useState<string | null>(null)
     const [searchQuery, setSearchQuery] = useState('')
-    const [filterPriority, setFilterPriority] = useState<string>('all')
+    const [filterPriority, setFilterPriority] = useState<string>(initialPriority)
     const [filterProject, setFilterProject] = useState<string>('all')
+    const [filterType, setFilterType] = useState<string>(initialFilter)
 
     // Client Approval State
     const [isClientApprovalDialogOpen, setIsClientApprovalDialogOpen] = useState(false)
@@ -83,6 +90,8 @@ export function TasksPage() {
     // Sync local state with store
     useEffect(() => {
         let filtered = storeTasks
+        const now = new Date()
+        now.setHours(0, 0, 0, 0)
 
         if (searchQuery) {
             filtered = filtered.filter((t: any) =>
@@ -99,8 +108,24 @@ export function TasksPage() {
             filtered = filtered.filter((t: any) => t.projectId === filterProject)
         }
 
+        // Advanced Filter Type
+        if (filterType === 'overdue') {
+            filtered = filtered.filter(t => t.status !== 'done' && new Date(t.dueDate) < now)
+        } else if (filterType === 'active') {
+            filtered = filtered.filter(t => t.status !== 'done')
+        } else if (filterType === 'today') {
+            filtered = filtered.filter(t => {
+                const d = new Date(t.dueDate)
+                return d.getDate() === now.getDate() && d.getMonth() === now.getMonth() && d.getFullYear() === now.getFullYear()
+            })
+        }
+
         setTasks(filtered)
-    }, [storeTasks, searchQuery, filterPriority, filterProject])
+        // Keep searchParams in sync for refreshes if needed, but for now we just read
+        if (searchParams.get('filter') !== filterType) {
+            // setSearchParams({ filter: filterType, priority: filterPriority }, { replace: true })
+        }
+    }, [storeTasks, searchQuery, filterPriority, filterProject, filterType])
 
     // Fetch Data
     useEffect(() => {
@@ -612,30 +637,36 @@ export function TasksPage() {
         <div className="space-y-4 h-[calc(100vh-100px)] flex flex-col w-full overflow-hidden">
             {/* Compact Header */}
             <div className="flex items-center gap-4 flex-shrink-0">
-                {/* Search Bar - Left Side */}
-                <div className="relative w-64">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                        placeholder="Search tasks..."
-                        className="pl-9 h-9 text-sm"
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                    />
-                </div>
-
                 {/* Title */}
-                <div className="flex-shrink-0">
+                <div className="flex-shrink-0 animate-in fade-in slide-in-from-left-4 duration-500">
                     <h1 className="text-2xl font-bold tracking-tight">Tasks</h1>
-                    <p className="text-sm text-muted-foreground">Manage tasks with Kanban board or list view.</p>
+                    <p className="text-sm text-muted-foreground">Manage work with Kanban or List views.</p>
                 </div>
 
-                {/* Controls - Right Side */}
-                <div className="flex items-center gap-2 ml-auto">
+                <div className="flex flex-wrap items-center gap-2 ml-auto justify-end">
+                    {/* Filter Type */}
+                    <select
+                        className={`h-9 px-3 rounded-md border text-sm w-32 ${filterType !== 'all' ? 'border-primary bg-primary/5 font-bold' : 'border-input bg-background'}`}
+                        value={filterType}
+                        onChange={(e) => {
+                            setFilterType(e.target.value)
+                            setSearchParams({ filter: e.target.value, priority: filterPriority })
+                        }}
+                    >
+                        <option value="all">All Tasks</option>
+                        <option value="active">Active</option>
+                        <option value="overdue">Overdue</option>
+                        <option value="today">Due Today</option>
+                    </select>
+
                     {/* Filters */}
                     <select
                         className="h-9 px-3 rounded-md border border-input bg-background text-sm w-32"
                         value={filterPriority}
-                        onChange={(e) => setFilterPriority(e.target.value)}
+                        onChange={(e) => {
+                            setFilterPriority(e.target.value)
+                            setSearchParams({ filter: filterType, priority: e.target.value })
+                        }}
                     >
                         <option value="all">All Priorities</option>
                         <option value="low">Low</option>
@@ -654,6 +685,23 @@ export function TasksPage() {
                             <option key={p.id} value={p.id}>{p.name}</option>
                         ))}
                     </select>
+
+                    {(filterType !== 'all' || filterPriority !== 'all' || filterProject !== 'all' || searchQuery) && (
+                        <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-9 px-2 text-muted-foreground hover:text-foreground"
+                            onClick={() => {
+                                setFilterType('all')
+                                setFilterPriority('all')
+                                setFilterProject('all')
+                                setSearchQuery('')
+                                setSearchParams({})
+                            }}
+                        >
+                            Clear
+                        </Button>
+                    )}
 
                     {/* View Toggle */}
                     <div className="flex bg-muted rounded-md p-0.5">

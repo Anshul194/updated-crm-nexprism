@@ -13,9 +13,12 @@ import {
     Legend, LineChart, Line
 } from 'recharts'
 
+import { useNavigate } from 'react-router-dom'
+
 type ReportTab = 'finance' | 'projects' | 'tasks' | 'clients' | 'sales'
 
 export function ReportsPage() {
+    const navigate = useNavigate()
     const [activeTab, setActiveTab] = useState<ReportTab>('finance')
     const [data, setData] = useState({
         expenses: [],
@@ -118,7 +121,7 @@ export function ReportsPage() {
                 {activeTab === 'finance' && <FinanceSection data={data} />}
                 {activeTab === 'sales' && <SalesSection data={data} />}
                 {activeTab === 'projects' && <ProjectSection data={data} />}
-                {activeTab === 'tasks' && <TaskSection data={data} />}
+                {activeTab === 'tasks' && <TaskSection data={data} navigate={navigate} />}
                 {activeTab === 'clients' && <SupportSection data={data} />}
             </div>
         </div>
@@ -346,14 +349,14 @@ function ProjectSection({ data }: { data: any }) {
 }
 
 // --- 4. TASK & PERFORMANCE SECTION ---
-function TaskSection({ data }: { data: any }) {
+function TaskSection({ data, navigate }: { data: any, navigate: any }) {
     const { tasks = [], users = [] } = data
 
     // Calculate Metrics
     const totalTasks = tasks.length
-    const completedTasks = tasks.filter((t: any) => t.status === 'done' || t.status === 'completed').length
+    const completedTasks = tasks.filter((t: any) => t.status === 'done').length
     const overdueTasks = tasks.filter((t: any) => {
-        const isNotDone = t.status !== 'done' && t.status !== 'completed'
+        const isNotDone = t.status !== 'done'
         return isNotDone && t.dueDate && new Date(t.dueDate) < new Date()
     }).length
     const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0
@@ -380,7 +383,7 @@ function TaskSection({ data }: { data: any }) {
     // Leaderboard Data
     const leaderboard = users.map((u: any) => {
         const userTasks = tasks.filter((t: any) => t.assigneeId === u.id || t.assigneeId === u._id)
-        const completed = userTasks.filter((t: any) => t.status === 'done' || t.status === 'completed').length
+        const completed = userTasks.filter((t: any) => t.status === 'done').length
         const score = (completed * 10) + (userTasks.length * 2) // Simple productivity score
         return {
             name: u.name,
@@ -394,7 +397,10 @@ function TaskSection({ data }: { data: any }) {
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="bg-card p-6 rounded-3xl border-2 border-primary/10 shadow-sm relative overflow-hidden group hover:border-primary transition-all">
+                <div
+                    onClick={() => navigate('/tasks?filter=active')}
+                    className="bg-card p-6 rounded-3xl border-2 border-primary/10 shadow-sm relative overflow-hidden group hover:border-primary transition-all cursor-pointer hover:shadow-md active:scale-95"
+                >
                     <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:scale-110 transition-transform">
                         <CheckSquare className="h-12 w-12 text-primary" />
                     </div>
@@ -404,7 +410,10 @@ function TaskSection({ data }: { data: any }) {
                         <TrendingUp className="h-3 w-3" /> +3% from last week
                     </p>
                 </div>
-                <div className="bg-card p-6 rounded-3xl border-2 border-emerald-500/10 shadow-sm hover:border-emerald-500 transition-all">
+                <div
+                    onClick={() => navigate('/tasks?filter=active')}
+                    className="bg-card p-6 rounded-3xl border-2 border-emerald-500/10 shadow-sm hover:border-emerald-500 transition-all cursor-pointer hover:shadow-md active:scale-95"
+                >
                     <p className="text-xs font-black uppercase text-muted-foreground tracking-widest">Completed</p>
                     <h3 className="text-4xl font-black mt-1 text-emerald-500 tracking-tighter">{completedTasks}</h3>
                     <div className="mt-4 flex -space-x-2">
@@ -413,12 +422,18 @@ function TaskSection({ data }: { data: any }) {
                         ))}
                     </div>
                 </div>
-                <div className="bg-card p-6 rounded-3xl border-2 border-rose-500/10 shadow-sm hover:border-rose-500 transition-all">
+                <div
+                    onClick={() => navigate('/tasks?filter=overdue')}
+                    className="bg-card p-6 rounded-3xl border-2 border-rose-500/10 shadow-sm hover:border-rose-500 transition-all cursor-pointer hover:shadow-md active:scale-95"
+                >
                     <p className="text-xs font-black uppercase text-muted-foreground tracking-widest">Overdue</p>
                     <h3 className="text-4xl font-black mt-1 text-rose-500 tracking-tighter">{overdueTasks}</h3>
                     <Badge variant="destructive" className="mt-2 animate-pulse bg-rose-500/90">Needs Attention</Badge>
                 </div>
-                <div className="bg-card p-6 rounded-3xl border-2 border-blue-500/10 shadow-sm hover:border-blue-500 transition-all">
+                <div
+                    onClick={() => navigate('/tasks?filter=active')}
+                    className="bg-card p-6 rounded-3xl border-2 border-blue-500/10 shadow-sm hover:border-blue-500 transition-all cursor-pointer hover:shadow-md active:scale-95"
+                >
                     <p className="text-xs font-black uppercase text-muted-foreground tracking-widest">Total Active</p>
                     <h3 className="text-4xl font-black mt-1 text-blue-500 tracking-tighter">{totalTasks - completedTasks}</h3>
                     <p className="text-[10px] text-muted-foreground mt-2 font-medium italic">Tasks currently in pipeline</p>

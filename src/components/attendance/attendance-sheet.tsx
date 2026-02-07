@@ -1,10 +1,10 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import {
     Check, X, Plane, Calendar, Search,
-    ChevronLeft, ChevronRight, Download,
-    Star, Info
+    ChevronLeft, ChevronRight,
+    Star, Info, Wallet
 } from 'lucide-react'
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
+import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardHeader } from '@/components/ui/card'
@@ -13,25 +13,59 @@ import {
     PopoverContent,
     PopoverTrigger,
 } from "@/components/ui/popover"
-import { getInitials } from '@/lib/utils'
+import { getInitials, formatCurrency } from '@/lib/utils'
 import type { User } from '@/types'
+import api from '@/lib/api-client'
+import { useToast } from '@/hooks/use-toast'
 
 interface AttendanceSheetProps {
     users: User[]
     currentUserId?: string
 }
 
-type AttendanceStatus = 'present' | 'absent' | 'late' | 'half-day' | 'leave' | 'holiday' | 'off'
+type AttendanceStatus = 'present' | 'absent' | 'late' | 'half-day' | 'leave' | 'holiday' | 'off' | 'checked-out'
 
-export function AttendanceSheet({ users, currentUserId }: AttendanceSheetProps) {
+export function AttendanceSheet({ users }: AttendanceSheetProps) {
+    const { toast } = useToast()
     const [currentDate, setCurrentDate] = useState(new Date())
     const [searchTerm, setSearchTerm] = useState('')
+    const [attendanceData, setAttendanceData] = useState<any[]>([])
+    const [payrollData, setPayrollData] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
 
-    const [holidays, setHolidays] = useState<number[]>([12, 26]) // Mock holidays
-    const [weekendDays] = useState<number[]>([0, 6]) // Default: Sunday (0) and Saturday (6)
+    // Global Settings for Payroll
+    const [offDays, setOffDays] = useState<number[]>([0]) // Default Sunday
+    const [holidays, setHolidays] = useState<{ date: string, label: string }[]>([])
 
-    // Key: "userId-dayOfMonth", Value: AttendanceStatus
-    const [manualAttendance, setManualAttendance] = useState<Record<string, AttendanceStatus>>({})
+    const fetchAllData = async () => {
+        setLoading(true)
+        try {
+            const month = currentDate.getMonth()
+            const year = currentDate.getFullYear()
+
+            const [attRes, payRes, settingsRes] = await Promise.all([
+                api.get(`/attendance/monthly?month=${month}&year=${year}`),
+                api.get(`/payroll/all?month=${month}&year=${year}`),
+                api.get('/settings')
+            ])
+
+            setAttendanceData(attRes.data)
+            setPayrollData(payRes.data)
+
+            if (settingsRes.data.payroll) {
+                setOffDays(settingsRes.data.payroll.offDays || [0])
+                setHolidays(settingsRes.data.payroll.holidays || [])
+            }
+        } catch (error) {
+            console.error("Failed to fetch sheet data", error)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    useEffect(() => {
+        fetchAllData()
+    }, [currentDate])
 
     // Generate days for the current month
     const daysInMonth = useMemo(() => {
@@ -40,49 +74,78 @@ export function AttendanceSheet({ users, currentUserId }: AttendanceSheetProps) 
         const days = new Date(year, month + 1, 0).getDate()
         return Array.from({ length: days }, (_, i) => {
             const date = new Date(year, month, i + 1)
-            const isWeekend = weekendDays.includes(date.getDay())
-            const isHoliday = holidays.includes(i + 1)
+            const dateStr = date.toISOString().split('T')[0]
+            const isWeekend = offDays.includes(date.getDay())
+            const isHoliday = holidays.some(h => h.date === dateStr)
             return {
                 date: i + 1,
                 dayName: date.toLocaleDateString('en-US', { weekday: 'short' }),
+                fullDate: dateStr,
                 isWeekend,
-                isHoliday
+                isHoliday,
+                holidayLabel: holidays.find(h => h.date === dateStr)?.label
             }
         })
-    }, [currentDate, holidays, weekendDays])
+    }, [currentDate, holidays, offDays])
 
-    const toggleHoliday = (day: number) => {
-        setHolidays(prev =>
-            prev.includes(day) ? prev.filter(d => d !== day) : [...prev, day]
-        )
+    const saveSettings = async (newOffDays: number[], newHolidays: typeof holidays) => {
+        try {
+            await api.put('/settings', {
+                payroll: {
+                    offDays: newOffDays,
+                    holidays: newHolidays
+                }
+            })
+            toast({ title: "Updated", description: "Global calendar settings saved" })
+            fetchAllData()
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to save settings", variant: "destructive" })
+        }
     }
 
-    const setStatus = (userId: string, day: number, status: AttendanceStatus) => {
-        setManualAttendance(prev => ({
-            ...prev,
-            [`${userId}-${day}`]: status
-        }))
+    const toggleOffDay = (dayIndex: number) => {
+        const updated = offDays.includes(dayIndex)
+            ? offDays.filter(d => d !== dayIndex)
+            : [...offDays, dayIndex]
+        setOffDays(updated)
+        saveSettings(updated, holidays)
     }
 
-    // Mock Data Generator (Deterministic based on user + date)
+    const toggleHoliday = (dateStr: string) => {
+        const updated = holidays.find(h => h.date === dateStr)
+            ? holidays.filter(h => h.date !== dateStr)
+            : [...holidays, { date: dateStr, label: 'Public Holiday' }]
+        setHolidays(updated)
+        saveSettings(offDays, updated)
+    }
+
+    const setStatus = async (userId: string, dateStr: string, status: AttendanceStatus) => {
+        try {
+            await api.post('/attendance/manual', {
+                userId,
+                date: dateStr,
+                status: status === 'leave' ? 'absent' : status // backend supports present, half-day, absent
+            })
+            toast({ title: "Updated", description: "Attendance updated" })
+            fetchAllData() // Refresh to sync salary and icons
+        } catch (error) {
+            toast({ title: "Error", description: "Failed to update", variant: "destructive" })
+        }
+    }
+
     const getStatusForDay = (userId: string, day: number): AttendanceStatus => {
-        // 1. Manual Override
-        if (manualAttendance[`${userId}-${day}`]) return manualAttendance[`${userId}-${day}`]
+        const record = attendanceData.find(a =>
+            (a.userId === userId) &&
+            (new Date(a.date).getDate() === day)
+        )
 
-        // 2. Holidays & Weekends (System)
-        if (holidays.includes(day)) return 'holiday'
-        if (daysInMonth[day - 1]?.isWeekend) return 'off'
+        if (record) return record.status as AttendanceStatus
 
-        // 3. Random deterministic logic (Simulation)
-        const seed = userId.charCodeAt(0) + day + currentDate.getMonth()
-        const rand = (seed * 9301 + 49297) % 233280
-        const result = rand % 100
+        const dayObj = daysInMonth.find(d => d.date === day)
+        if (dayObj?.isHoliday) return 'holiday'
+        if (dayObj?.isWeekend) return 'off'
 
-        if (result < 3) return 'leave'
-        if (result < 8) return 'absent'
-        if (result < 15) return 'late'
-        if (result < 20) return 'half-day'
-        return 'present'
+        return 'absent'
     }
 
     const filteredUsers = users.filter(u =>
@@ -96,13 +159,14 @@ export function AttendanceSheet({ users, currentUserId }: AttendanceSheetProps) 
     const renderIcon = (status: AttendanceStatus) => {
         switch (status) {
             case 'present': return <Check className="h-4 w-4 text-emerald-500" strokeWidth={3} />
+            case 'checked-out': return <Check className="h-4 w-4 text-emerald-500" strokeWidth={3} />
             case 'absent': return <X className="h-4 w-4 text-slate-400" strokeWidth={3} />
             case 'late': return <Info className="h-4 w-4 text-amber-500 fill-amber-50" />
             case 'half-day': return <Star className="h-4 w-4 text-rose-500 fill-rose-500" />
             case 'leave': return <Plane className="h-4 w-4 text-rose-600" />
             case 'holiday': return <Star className="h-4 w-4 text-amber-400 fill-amber-400" />
             case 'off': return <Calendar className="h-4 w-4 text-rose-500" />
-            default: return null
+            default: return <X className="h-4 w-4 text-slate-200" />
         }
     }
 
@@ -113,6 +177,8 @@ export function AttendanceSheet({ users, currentUserId }: AttendanceSheetProps) 
             <span className="text-foreground">{label}</span>
         </div>
     )
+
+    if (loading && attendanceData.length === 0) return <div className="p-12 text-center text-muted-foreground">Loading Team Data...</div>
 
     return (
         <Card className="shadow-none border-none bg-transparent">
@@ -131,13 +197,11 @@ export function AttendanceSheet({ users, currentUserId }: AttendanceSheetProps) 
                         <LegendItem icon={<Info className="h-3.5 w-3.5 text-amber-500 fill-amber-50" />} label="Late" />
                         <span className="text-muted-foreground/30 px-1">|</span>
                         <LegendItem icon={<X className="h-3.5 w-3.5 text-slate-400" strokeWidth={3} />} label="Absent" />
-                        <span className="text-muted-foreground/30 px-1">|</span>
-                        <LegendItem icon={<Plane className="h-3.5 w-3.5 text-rose-600" />} label="On Leave" />
                     </div>
 
                     <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                         <div className="flex items-center gap-3">
-                            <h2 className="text-lg font-bold">Monthly Report</h2>
+                            <h2 className="text-lg font-bold">Team Sheet {loading && <span className="text-[10px] text-primary animate-pulse ml-2">Syncing...</span>}</h2>
                             <div className="flex items-center border rounded-lg bg-background shadow-sm overflow-hidden h-9">
                                 <Button variant="ghost" size="icon" onClick={prevMonth} className="h-full rounded-none"><ChevronLeft className="h-4 w-4" /></Button>
                                 <span className="px-3 font-bold text-xs min-w-[100px] text-center uppercase tracking-wider">
@@ -148,6 +212,95 @@ export function AttendanceSheet({ users, currentUserId }: AttendanceSheetProps) 
                         </div>
 
                         <div className="flex items-center gap-2 w-full md:w-auto">
+                            <Popover>
+                                <PopoverTrigger asChild>
+                                    <Button variant="outline" size="sm" className="h-9 gap-2 shadow-sm font-bold border-primary/20 text-primary hover:bg-primary/5">
+                                        <Calendar className="h-4 w-4" /> Manage Schedule
+                                    </Button>
+                                </PopoverTrigger>
+                                <PopoverContent className="w-80 p-4 shadow-2xl">
+                                    <div className="space-y-4">
+                                        <div>
+                                            <h3 className="font-bold text-sm mb-3">Weekly Off-Days</h3>
+                                            <div className="grid grid-cols-4 gap-2">
+                                                {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, idx) => (
+                                                    <Button
+                                                        key={day}
+                                                        variant={offDays.includes(idx) ? 'default' : 'outline'}
+                                                        size="sm"
+                                                        className="h-8 text-[10px] px-0"
+                                                        onClick={() => toggleOffDay(idx)}
+                                                    >
+                                                        {day}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                        </div>
+
+                                        <div className="pt-4 border-t">
+                                            <h3 className="font-bold text-sm mb-3">Public Holidays</h3>
+                                            <div className="space-y-2 max-h-[150px] overflow-y-auto mb-3">
+                                                {holidays.length === 0 && <p className="text-[10px] text-muted-foreground italic">No holidays set.</p>}
+                                                {holidays.map((h, i) => (
+                                                    <div key={i} className="flex items-center justify-between bg-muted/50 p-2 rounded text-[10px] group">
+                                                        <div className="flex flex-col">
+                                                            <span className="font-bold">{h.label}</span>
+                                                            <span className="text-muted-foreground">{h.date}</span>
+                                                        </div>
+                                                        <Button
+                                                            variant="ghost"
+                                                            size="icon"
+                                                            className="h-6 w-6 text-rose-500 opacity-0 group-hover:opacity-100"
+                                                            onClick={() => toggleHoliday(h.date)}
+                                                        >
+                                                            <X className="h-3 w-3" />
+                                                        </Button>
+                                                    </div>
+                                                ))}
+                                            </div>
+
+                                            <div className="flex flex-col gap-2 pt-3 border-t mt-3">
+                                                <h4 className="text-[11px] font-bold">Add Custom Holiday</h4>
+                                                <div className="flex gap-2">
+                                                    <Input
+                                                        type="date"
+                                                        className="h-7 text-[10px] w-full"
+                                                        id="new-h-date"
+                                                    />
+                                                    <Input
+                                                        placeholder="Name"
+                                                        className="h-7 text-[10px] w-full"
+                                                        id="new-h-label"
+                                                    />
+                                                </div>
+                                                <Button
+                                                    size="sm"
+                                                    className="h-7 text-[10px] font-bold"
+                                                    onClick={() => {
+                                                        const d = (document.getElementById('new-h-date') as HTMLInputElement).value
+                                                        const l = (document.getElementById('new-h-label') as HTMLInputElement).value
+                                                        if (d && l) {
+                                                            const updated = [...holidays, { date: d, label: l }]
+                                                            setHolidays(updated)
+                                                            saveSettings(offDays, updated)
+                                                                // Clear inputs
+                                                                ; (document.getElementById('new-h-date') as HTMLInputElement).value = ''
+                                                                ; (document.getElementById('new-h-label') as HTMLInputElement).value = ''
+                                                        } else {
+                                                            toast({ title: "Error", description: "Select date & label", variant: "destructive" })
+                                                        }
+                                                    }}
+                                                >
+                                                    Add Holiday
+                                                </Button>
+                                                <p className="text-[10px] text-muted-foreground italic leading-tight mt-1">
+                                                    Tip: Click on date numbers in the header to toggle fast.
+                                                </p>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </PopoverContent>
+                            </Popover>
                             <div className="relative w-full md:w-auto">
                                 <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
                                 <Input
@@ -157,128 +310,104 @@ export function AttendanceSheet({ users, currentUserId }: AttendanceSheetProps) 
                                     onChange={(e) => setSearchTerm(e.target.value)}
                                 />
                             </div>
-                            <Button variant="outline" size="sm" className="h-9 gap-2 shadow-sm font-bold">
-                                <Download className="h-4 w-4" /> Export
-                            </Button>
                         </div>
                     </div>
                 </div>
             </CardHeader>
 
-            <CardContent className="p-0 overflow-hidden border rounded-xl bg-white shadow-sm">
+            <CardContent className="p-0 overflow-hidden border rounded-xl bg-card shadow-sm">
                 <div className="overflow-x-auto">
-                    <table className="w-full border-collapse">
+                    <table className="w-full border-collapse text-[11px]">
                         <thead>
-                            <tr className="bg-[#f8f9fa]">
-                                <th className="sticky left-0 z-20 bg-[#f8f9fa] border-b border-r py-4 px-4 min-w-[240px] text-left text-xs font-bold text-slate-500 uppercase tracking-wider">
+                            <tr className="bg-muted/30">
+                                <th className="sticky left-0 z-20 bg-card border-b border-r py-4 px-4 min-w-[200px] text-left font-bold text-slate-500 uppercase tracking-wider">
                                     Employee
+                                </th>
+                                <th className="border-b border-r py-4 px-2 min-w-[100px] text-emerald-500 font-bold uppercase tracking-wider bg-emerald-500/5">
+                                    Real-time Salary
                                 </th>
                                 {daysInMonth.map((d) => (
                                     <th
                                         key={d.date}
-                                        onClick={() => toggleHoliday(d.date)}
+                                        onClick={() => toggleHoliday(d.fullDate)}
+                                        title={d.isHoliday ? `Holiday: ${d.holidayLabel}` : 'Click to mark as Holiday'}
                                         className={`
-                                            border-b border-r py-2 min-w-[36px] w-[36px] cursor-pointer hover:bg-amber-50/50 transition-colors
-                                            ${d.isWeekend ? 'bg-slate-50/50' : ''}
-                                            ${d.isHoliday ? 'bg-amber-50/50' : ''}
+                                            border-b border-r py-2 min-w-[32px] w-[32px] cursor-pointer hover:bg-amber-500/20 transition-colors
+                                            ${d.isWeekend ? 'bg-muted/20' : ''}
+                                            ${d.isHoliday ? 'bg-amber-500/20' : ''}
                                         `}
                                     >
                                         <div className="flex flex-col items-center justify-center">
-                                            <span className={`text-[13px] font-bold ${d.isWeekend ? 'text-slate-400' : 'text-slate-700'}`}>{d.date}</span>
-                                            <span className="text-[9px] uppercase font-bold text-slate-400 leading-none mt-0.5">{d.dayName}</span>
+                                            <span className={`font-bold ${d.isWeekend ? 'text-muted-foreground/50' : (d.isHoliday ? 'text-amber-500' : 'text-foreground')}`}>{d.date}</span>
+                                            <span className="text-[8px] uppercase font-bold text-muted-foreground/50 leading-none mt-0.5">{d.dayName}</span>
                                         </div>
                                     </th>
                                 ))}
-                                <th className="sticky right-0 z-20 bg-[#f8f9fa] border-b border-l py-4 px-2 min-w-[80px] text-center text-xs font-bold text-slate-500 uppercase tracking-wider">
-                                    Total
-                                </th>
                             </tr>
                         </thead>
-                        <tbody className="divide-y divide-slate-100">
-                            {filteredUsers.length === 0 ? (
-                                <tr>
-                                    <td colSpan={daysInMonth.length + 2} className="p-12 text-center text-muted-foreground font-medium">
-                                        No employees found matching search.
-                                    </td>
-                                </tr>
-                            ) : (
-                                filteredUsers.map((user) => {
-                                    let presentCount = 0
-                                    const isSelf = user._id === currentUserId || user.id === currentUserId
+                        <tbody className="divide-y divide-border/50">
+                            {filteredUsers.map((user) => {
+                                const payroll = payrollData.find(p => p.userId === (user.id || (user as any)._id))
 
-                                    return (
-                                        <tr key={user.id || user._id} className="group hover:bg-slate-50/50 transition-colors">
-                                            <td className="sticky left-0 z-10 bg-white group-hover:bg-slate-50/50 border-r py-3 px-4 transition-colors">
-                                                <div className="flex items-center gap-3">
-                                                    <Avatar className="h-9 w-9 border-2 border-slate-100">
-                                                        <AvatarImage src={user.avatar} />
-                                                        <AvatarFallback className="text-xs bg-slate-100 text-slate-600 font-bold">{getInitials(user.name)}</AvatarFallback>
-                                                    </Avatar>
-                                                    <div className="overflow-hidden">
-                                                        <div className="flex items-center gap-2">
-                                                            <p className="text-[14px] font-bold text-slate-700 truncate">{user.name}</p>
-                                                            {isSelf && (
-                                                                <span className="bg-slate-700 text-white text-[9px] px-1.5 py-0.5 rounded font-bold uppercase tracking-tighter">It's you</span>
-                                                            )}
-                                                        </div>
-                                                        <p className="text-[11px] text-slate-400 font-medium truncate">{user.role || 'Staff Member'}</p>
-                                                    </div>
+                                return (
+                                    <tr key={user.id || (user as any)._id} className="group hover:bg-muted/30 transition-colors">
+                                        <td className="sticky left-0 z-10 bg-card group-hover:bg-muted/30 border-r py-3 px-4 transition-colors">
+                                            <div className="flex items-center gap-3">
+                                                <Avatar className="h-8 w-8 border border-border/50">
+                                                    <AvatarFallback className="text-[10px] bg-muted text-muted-foreground font-bold">{getInitials(user.name)}</AvatarFallback>
+                                                </Avatar>
+                                                <div className="overflow-hidden">
+                                                    <p className="font-bold text-foreground truncate">{user.name}</p>
+                                                    <p className="text-[9px] text-muted-foreground font-medium truncate uppercase">{user.role}</p>
                                                 </div>
-                                            </td>
+                                            </div>
+                                        </td>
+                                        <td className="border-r py-3 px-2 text-center bg-emerald-500/5">
+                                            <div className="flex items-center justify-center gap-1 font-black text-emerald-500">
+                                                <Wallet className="h-3 w-3" />
+                                                {formatCurrency(payroll?.calculatedSalary || 0)}
+                                            </div>
+                                        </td>
 
-                                            {daysInMonth.map((d) => {
-                                                const status = getStatusForDay(user.id || (user as any)._id, d.date)
-                                                if (['present', 'late', 'half-day'].includes(status)) presentCount++
+                                        {daysInMonth.map((d) => {
+                                            const status = getStatusForDay(user.id || (user as any)._id, d.date)
 
-                                                return (
-                                                    <td
-                                                        key={d.date}
-                                                        className={`
-                                                            border-r p-0 h-12 text-center relative
-                                                            ${d.isWeekend ? 'bg-slate-50/20' : ''}
-                                                            ${status === 'holiday' ? 'bg-amber-50/10' : ''}
-                                                        `}
-                                                    >
-                                                        <div className="flex items-center justify-center h-full w-full">
-                                                            <Popover>
-                                                                <PopoverTrigger asChild>
-                                                                    <div className="h-full w-full flex items-center justify-center cursor-pointer hover:bg-slate-100/50 transition-colors">
-                                                                        {renderIcon(status)}
-                                                                    </div>
-                                                                </PopoverTrigger>
-                                                                <PopoverContent className="w-48 p-2 shadow-2xl border-slate-200">
-                                                                    <div className="space-y-1">
-                                                                        <div className="text-[10px] font-bold text-slate-400 px-2 py-1 uppercase tracking-widest border-b mb-1">
-                                                                            Mark Attendance
-                                                                        </div>
-                                                                        {(['present', 'late', 'half-day', 'absent', 'leave'] as const).map((s) => (
-                                                                            <Button
-                                                                                key={s}
-                                                                                variant="ghost"
-                                                                                className={`w-full justify-start h-8 text-[11px] font-bold gap-3 rounded-md px-2 ${status === s ? 'bg-slate-100' : ''}`}
-                                                                                onClick={() => setStatus(user.id || (user as any)._id, d.date, s)}
-                                                                            >
-                                                                                <div className="w-4 flex justify-center scale-75">{renderIcon(s)}</div>
-                                                                                <span className="capitalize">{s.replace('-', ' ')}</span>
-                                                                            </Button>
-                                                                        ))}
-                                                                    </div>
-                                                                </PopoverContent>
-                                                            </Popover>
-                                                        </div>
-                                                    </td>
-                                                )
-                                            })}
-
-                                            <td className="sticky right-0 z-10 bg-white group-hover:bg-slate-50/50 border-l py-3 px-2 text-center transition-colors">
-                                                <span className="text-[13px] font-bold text-slate-500">
-                                                    {presentCount} <span className="text-slate-300 font-medium">/ {daysInMonth.length}</span>
-                                                </span>
-                                            </td>
-                                        </tr>
-                                    )
-                                })
-                            )}
+                                            return (
+                                                <td
+                                                    key={d.date}
+                                                    className={`
+                                                        border-r p-0 h-10 text-center relative
+                                                        ${d.isWeekend ? 'bg-muted/10' : ''}
+                                                    `}
+                                                >
+                                                    <Popover>
+                                                        <PopoverTrigger asChild>
+                                                            <div className="h-full w-full flex items-center justify-center cursor-pointer hover:bg-muted/50">
+                                                                {renderIcon(status)}
+                                                            </div>
+                                                        </PopoverTrigger>
+                                                        <PopoverContent className="w-40 p-1 shadow-2xl">
+                                                            <div className="grid gap-1">
+                                                                {(['present', 'half-day', 'absent'] as const).map((s) => (
+                                                                    <Button
+                                                                        key={s}
+                                                                        variant="ghost"
+                                                                        className="justify-start h-8 text-[10px] font-bold gap-2 px-2"
+                                                                        onClick={() => setStatus(user.id || (user as any)._id, d.fullDate, s)}
+                                                                    >
+                                                                        {renderIcon(s)}
+                                                                        <span className="capitalize">{s}</span>
+                                                                    </Button>
+                                                                ))}
+                                                            </div>
+                                                        </PopoverContent>
+                                                    </Popover>
+                                                </td>
+                                            )
+                                        })}
+                                    </tr>
+                                )
+                            })}
                         </tbody>
                     </table>
                 </div>

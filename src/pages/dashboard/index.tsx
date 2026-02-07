@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import axios from 'axios'
+import api from '@/lib/api-client'
+import { mapLead, mapProject, mapInvoice, mapExpense, mapTask } from '@/lib/mappers'
 import { useNavigate } from 'react-router-dom'
 import { useAppStore } from '@/store'
 import { Button } from '@/components/ui/button'
@@ -21,7 +22,7 @@ import { useDashboardMetrics } from '@/hooks/use-dashboard-metrics'
 
 export function DashboardPage() {
     const navigate = useNavigate()
-    const { currentUser, leads, invoices, setLeads, setExpenses } = useAppStore()
+    const { currentUser, leads, invoices, setLeads, setExpenses, setProjects, setInvoices, setTasks } = useAppStore()
     const [settings, setSettings] = useState<any>(null)
     const userId = currentUser.id || (currentUser as any)._id
 
@@ -42,22 +43,46 @@ export function DashboardPage() {
     useEffect(() => {
         const loadInitialData = async () => {
             try {
+                console.log('Fetching dashboard data...')
                 const [settingsRes] = await Promise.all([
-                    axios.get('http://localhost:5000/api/settings').catch(() => ({ data: null })),
-                    leads.length === 0 ? axios.get('http://localhost:5000/api/leads').then(res => {
-                        setLeads(res.data.map((l: any) => ({ id: l._id, ...l, activities: l.activities || [] })))
-                    }).catch(() => { }) : Promise.resolve(),
-                    axios.get('http://localhost:5000/api/expenses').then(res => {
-                        setExpenses(res.data.map((e: any) => ({ id: e._id, ...e })))
-                    }).catch(() => { })
+                    api.get('/settings').catch(() => ({ data: null })),
+                    api.get('/leads').then(res => {
+                        console.log('Leads fetched:', res.data.length)
+                        setLeads(res.data.map(mapLead))
+                    }).catch(err => console.error('Leads fetch fail:', err)),
+                    api.get('/expenses').then(res => {
+                        setExpenses(res.data.map(mapExpense))
+                    }).catch(err => console.error('Expenses fetch fail:', err)),
+                    api.get('/projects').then(res => {
+                        console.log('Projects fetched:', res.data.length)
+                        setProjects(res.data.map(mapProject))
+                    }).catch(err => console.error('Projects fetch fail:', err)),
+                    api.get('/invoices').then(res => {
+                        console.log('Invoices fetched:', res.data.length)
+                        setInvoices(res.data.map(mapInvoice))
+                    }).catch(err => console.error('Invoices fetch fail:', err)),
+                    api.get('/tasks').then(res => {
+                        setTasks(res.data.map(mapTask))
+                    }).catch(err => console.error('Tasks fetch fail:', err)),
+                    api.get('/notifications').then(res => {
+                        if (Array.isArray(res.data)) {
+                            useAppStore.getState().setNotifications(res.data.map((n: any) => ({
+                                id: n._id,
+                                title: n.title,
+                                message: n.message,
+                                read: n.read,
+                                createdAt: new Date(n.createdAt)
+                            })))
+                        }
+                    }).catch(err => console.error('Notifications fetch fail:', err))
                 ])
-                if (settingsRes.data) setSettings(settingsRes.data)
+                if (settingsRes?.data) setSettings(settingsRes.data)
             } catch (error) {
                 console.error("Dashboard Load Error", error)
             }
         }
         loadInitialData()
-    }, [setLeads, setExpenses])
+    }, [setLeads, setExpenses, setProjects, setInvoices, setTasks])
 
     const renderSection = (key: string) => {
         const COLORS = ['#3b82f6', '#8b5cf6', '#10b981', '#f59e0b', '#64748b']
@@ -101,12 +126,12 @@ export function DashboardPage() {
                         <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-wider pl-1 font-sans">Operational Efficiency</h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                             {[
-                                { label: 'Active Projects', value: relevantProjects.filter(p => p.status === 'in-progress').length, sub: 'Projects in flight', icon: Briefcase, color: 'text-indigo-600', bg: 'bg-indigo-500/10' },
-                                { label: 'Pending Tasks', value: relevantTasks.filter(t => t.status !== 'done').length, sub: 'Due this week', icon: CheckSquare, color: 'text-cyan-600', bg: 'bg-cyan-500/10' },
+                                { label: 'Active Projects', value: relevantProjects.filter(p => p.status === 'in-progress').length, sub: 'Projects in flight', icon: Briefcase, color: 'text-indigo-600', bg: 'bg-indigo-500/10', onClick: () => navigate('/projects') },
+                                { label: 'Pending Tasks', value: relevantTasks.filter(t => t.status !== 'done').length, sub: 'Due this week', icon: CheckSquare, color: 'text-cyan-600', bg: 'bg-cyan-500/10', onClick: () => navigate('/tasks?filter=active') },
                                 { label: 'Win Rate', value: `${winRate}%`, sub: 'Lead Conversion', icon: Target, color: 'text-purple-600', bg: 'bg-purple-500/10' },
                                 { label: 'Billable Hours', value: `${totalBillableHours}h`, sub: 'Tracked time', icon: Clock, color: 'text-orange-600', bg: 'bg-orange-500/10' },
                             ].map((stat, i) => (
-                                <div key={i} className="dashboard-card hover:-translate-y-1">
+                                <div key={i} className={`dashboard-card hover:-translate-y-1 ${stat.onClick ? 'cursor-pointer active:scale-95' : ''}`} onClick={stat.onClick}>
                                     <div className="dashboard-card-content flex flex-col justify-between h-full p-5">
                                         <div className="flex justify-between items-start mb-3">
                                             <div className={`p-2.5 rounded-xl ${stat.bg} ${stat.color} transition-colors`}>

@@ -23,6 +23,18 @@ exports.createClient = async (req, res, next) => {
     try {
         const client = new Client(req.body);
         const newClient = await client.save();
+
+        // Trigger Notification
+        try {
+            const Notification = require('../models/Notification');
+            await Notification.create({
+                title: 'New Client Registered',
+                message: `Client "${newClient.company}" has been added to the system.`,
+                type: 'new_client',
+                relatedId: newClient._id
+            });
+        } catch (nErr) { console.error('Notif Error:', nErr); }
+
         res.status(201).json(newClient);
     } catch (err) {
         next(err);

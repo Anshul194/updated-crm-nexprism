@@ -70,6 +70,18 @@ router.post('/', async (req, res) => {
     try {
         const lead = new Lead(req.body);
         const newLead = await lead.save();
+
+        // Trigger Notification
+        try {
+            const Notification = require('../models/Notification');
+            await Notification.create({
+                title: 'New Lead Captured',
+                message: `Lead "${newLead.company}" (${newLead.name}) has been added to the pipeline.`,
+                type: 'new_lead',
+                relatedId: newLead._id
+            });
+        } catch (nErr) { console.error('Notif Error:', nErr); }
+
         res.status(201).json(newLead);
     } catch (err) {
         res.status(400).json({ message: err.message });

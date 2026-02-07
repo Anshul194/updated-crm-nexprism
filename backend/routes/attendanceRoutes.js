@@ -141,6 +141,57 @@ router.post('/check-out', async (req, res) => {
     }
 });
 
+// Get monthly attendance for all users
+router.get('/monthly', async (req, res) => {
+    try {
+        const { month, year } = req.query;
+        const targetMonth = month ? parseInt(month) : new Date().getMonth();
+        const targetYear = year ? parseInt(year) : new Date().getFullYear();
+
+        const startDate = new Date(targetYear, targetMonth, 1);
+        const endDate = new Date(targetYear, targetMonth + 1, 0, 23, 59, 59);
+
+        const attendance = await Attendance.find({
+            date: { $gte: startDate, $lte: endDate }
+        });
+
+        res.json(attendance);
+    } catch (error) {
+        res.status(500).json({ message: error.message });
+    }
+});
+
+// Manual Attendance Management (Admin only)
+router.post('/manual', async (req, res) => {
+    try {
+        const { userId, date, status } = req.body;
+        const targetDate = new Date(date);
+        targetDate.setHours(0, 0, 0, 0);
+
+        let attendance = await Attendance.findOne({ userId, date: targetDate });
+
+        if (attendance) {
+            attendance.status = status;
+            attendance.isHalfDay = (status === 'half-day');
+            await attendance.save();
+        } else {
+            attendance = new Attendance({
+                userId,
+                date: targetDate,
+                status,
+                isHalfDay: (status === 'half-day'),
+                checkIn: status !== 'absent' ? targetDate : undefined,
+                checkOut: status === 'present' ? targetDate : undefined
+            });
+            await attendance.save();
+        }
+
+        res.json({ message: 'Attendance updated successfully', attendance });
+    } catch (error) {
+        res.status(400).json({ message: error.message });
+    }
+});
+
 // Get attendance history for a user
 router.get('/history/:userId', async (req, res) => {
     try {

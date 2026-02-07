@@ -7,7 +7,10 @@ import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, Mail, Phone, Briefcase, MapPin, User, FileText, Shield } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, Briefcase, MapPin, User, FileText, Shield, Edit, Save, X } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Input } from '@/components/ui/input'
+import { Textarea } from '@/components/ui/textarea'
 import axios from 'axios'
 import { useToast } from '@/hooks/use-toast'
 import { getInitials, formatDate } from '@/lib/utils'
@@ -18,6 +21,8 @@ export function TeamMemberPage() {
     const { users } = useAppStore()
     const [user, setUser] = useState<any>(null)
     const [loading, setLoading] = useState(true)
+    const [isEditDialogOpen, setIsEditDialogOpen] = useState(false)
+    const [editForm, setEditForm] = useState<any>({})
     const { toast } = useToast()
 
     // State for New Member Form (Simulated here if ID is new, but main Add is in Modal now)
@@ -32,11 +37,14 @@ export function TeamMemberPage() {
             const found = users.find(u => u.id === id)
             if (found) {
                 setUser(found)
+                setEditForm(found)
                 setLoading(false)
             } else {
                 try {
                     const res = await axios.get(`http://localhost:5000/api/users/${id}`)
-                    setUser({ ...res.data, id: res.data._id })
+                    const mapped = { ...res.data, id: res.data._id }
+                    setUser(mapped)
+                    setEditForm(mapped)
                 } catch (error) {
                     toast({ variant: "destructive", title: "Error", description: "User not found" })
                 } finally {
@@ -46,6 +54,18 @@ export function TeamMemberPage() {
         }
         fetchUser()
     }, [id, users, toast])
+
+    const handleUpdateUser = async () => {
+        try {
+            const res = await axios.put(`http://localhost:5000/api/users/${id}`, editForm)
+            const updated = { ...res.data, id: res.data._id }
+            setUser(updated)
+            setIsEditDialogOpen(false)
+            toast({ title: "Success", description: "User updated successfully" })
+        } catch (error) {
+            toast({ variant: "destructive", title: "Error", description: "Failed to update user" })
+        }
+    }
 
     const getManagerName = (managerId: string) => {
         if (!managerId) return 'N/A'
@@ -69,14 +89,19 @@ export function TeamMemberPage() {
     // --- VIEW USER PROFILE ---
     return (
         <div className="space-y-6">
-            <div className="flex items-center gap-4">
-                <Button variant="ghost" size="icon" onClick={() => navigate('/team')}>
-                    <ArrowLeft className="h-4 w-4" />
-                </Button>
-                <div>
-                    <h1 className="text-2xl font-bold">Member Profile</h1>
-                    <p className="text-muted-foreground text-sm">View full employee details.</p>
+            <div className="flex items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <Button variant="ghost" size="icon" onClick={() => navigate('/team')}>
+                        <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                    <div>
+                        <h1 className="text-2xl font-bold">Member Profile</h1>
+                        <p className="text-muted-foreground text-sm">View full employee details.</p>
+                    </div>
                 </div>
+                <Button onClick={() => setIsEditDialogOpen(true)} className="gap-2">
+                    <Edit className="h-4 w-4" /> Edit Profile
+                </Button>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -266,6 +291,57 @@ export function TeamMemberPage() {
 
                 </div>
             </div>
+
+            {/* Edit Dialog */}
+            <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
+                <DialogContent className="max-w-2xl h-[80vh] flex flex-col p-0">
+                    <DialogHeader className="p-6 border-b">
+                        <DialogTitle>Edit Employee Details</DialogTitle>
+                    </DialogHeader>
+                    <div className="flex-1 overflow-y-auto p-6 space-y-4">
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Name</Label>
+                                <Input value={editForm.name} onChange={e => setEditForm({ ...editForm, name: e.target.value })} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Email</Label>
+                                <Input value={editForm.email} onChange={e => setEditForm({ ...editForm, email: e.target.value })} />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Designation</Label>
+                                <Input value={editForm.designation} onChange={e => setEditForm({ ...editForm, designation: e.target.value })} />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Department</Label>
+                                <Input value={editForm.department} onChange={e => setEditForm({ ...editForm, department: e.target.value })} />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                                <Label>Monthly Salary</Label>
+                                <Input value={editForm.salary} onChange={e => setEditForm({ ...editForm, salary: e.target.value })} placeholder="e.g. 50000" />
+                            </div>
+                            <div className="space-y-2">
+                                <Label>Phone</Label>
+                                <Input value={editForm.phone} onChange={e => setEditForm({ ...editForm, phone: e.target.value })} />
+                            </div>
+                        </div>
+                        <div className="space-y-2">
+                            <Label>Address</Label>
+                            <Textarea value={editForm.address} onChange={e => setEditForm({ ...editForm, address: e.target.value })} />
+                        </div>
+                    </div>
+                    <DialogFooter className="p-4 border-t gap-2">
+                        <Button variant="outline" onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+                        <Button onClick={handleUpdateUser} className="gap-2">
+                            <Save className="h-4 w-4" /> Save Changes
+                        </Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
