@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import {
@@ -6,7 +6,7 @@ import {
     TrendingUp, TrendingDown, Users, Activity, ArrowUpRight, ArrowDownRight
 } from 'lucide-react'
 import { formatCurrency } from '@/lib/utils'
-import axios from 'axios'
+import api from '@/lib/api-client'
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
     BarChart, Bar, Cell, PieChart, Pie,
@@ -27,19 +27,21 @@ export function ReportsPage() {
         tickets: [],
         tasks: [],
         users: [],
+        invoices: [],
         loading: true
     })
 
     useEffect(() => {
         const fetchAllData = async () => {
             try {
-                const [expRes, leadsRes, projRes, ticketsRes, tasksRes, usersRes] = await Promise.all([
-                    axios.get('http://localhost:5000/api/expenses'),
-                    axios.get('http://localhost:5000/api/leads'),
-                    axios.get('http://localhost:5000/api/projects'),
-                    axios.get('http://localhost:5000/api/tickets'),
-                    axios.get('http://localhost:5000/api/tasks').catch(() => ({ data: [] })),
-                    axios.get('http://localhost:5000/api/users').catch(() => ({ data: [] }))
+                const [expRes, leadsRes, projRes, ticketsRes, tasksRes, usersRes, invRes] = await Promise.all([
+                    api.get('/expenses'),
+                    api.get('/leads'),
+                    api.get('/projects'),
+                    api.get('/tickets'),
+                    api.get('/tasks').catch(() => ({ data: [] })),
+                    api.get('/users').catch(() => ({ data: [] })),
+                    api.get('/invoices').catch(() => ({ data: [] }))
                 ])
 
                 setData({
@@ -49,6 +51,7 @@ export function ReportsPage() {
                     tickets: ticketsRes.data,
                     tasks: tasksRes.data,
                     users: usersRes.data || [],
+                    invoices: invRes.data || [],
                     loading: false
                 })
             } catch (error) {
@@ -130,51 +133,72 @@ export function ReportsPage() {
 
 // --- 1. FINANCE SECTION ---
 function FinanceSection({ data }: { data: any }) {
-    const totalWonRevenue = data.leads
-        .filter((l: any) => l.stage === 'won' || l.status === 'won')
-        .reduce((sum: number, l: any) => sum + (Number(l.value) || 0), 0) || 1250000 // Fallback for demo if DB empty
+    const totalRevenue = data.invoices
+        .filter((i: any) => i.status === 'paid')
+        .reduce((sum: number, i: any) => sum + (Number(i.total) || 0), 0)
 
-    const totalExpenses = data.expenses.reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0) || 450000
-    const profit = totalWonRevenue - totalExpenses
+    const totalExpenses = data.expenses.reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0)
+    const profit = totalRevenue - totalExpenses
 
-    const chartData = [
-        { name: 'Mon', revenue: 4000, expenses: 2400 },
-        { name: 'Tue', revenue: 3000, expenses: 1398 },
-        { name: 'Wed', revenue: 9800, expenses: 2000 },
-        { name: 'Thu', revenue: 3908, expenses: 2780 },
-        { name: 'Fri', revenue: 4800, expenses: 1890 },
-        { name: 'Sat', revenue: 3800, expenses: 2390 },
-        { name: 'Sun', revenue: 4300, expenses: 3490 },
-    ]
+    // Aggregate monthly data for chart
+    const chartData = useMemo(() => {
+        const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
+        const last6Months: any[] = []
+        for (let i = 5; i >= 0; i--) {
+            const d = new Date()
+            d.setMonth(d.getMonth() - i)
+            last6Months.push({
+                name: months[d.getMonth()],
+                month: d.getMonth(),
+                year: d.getFullYear(),
+                revenue: 0,
+                expenses: 0
+            })
+        }
+
+        data.invoices.filter((i: any) => i.status === 'paid').forEach((inv: any) => {
+            const date = new Date(inv.date)
+            const entry = last6Months.find(m => m.month === date.getMonth() && m.year === date.getFullYear())
+            if (entry) entry.revenue += inv.total
+        })
+
+        data.expenses.forEach((exp: any) => {
+            const date = new Date(exp.date)
+            const entry = last6Months.find(m => m.month === date.getMonth() && m.year === date.getFullYear())
+            if (entry) entry.expenses += exp.amount
+        })
+
+        return last6Months
+    }, [data.invoices, data.expenses])
 
     return (
         <div className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
                 <MetricCard
                     label="Gross Revenue"
-                    value={formatCurrency(totalWonRevenue)}
-                    trend="+14.2%"
+                    value={formatCurrency(totalRevenue)}
+                    trend={totalRevenue > 0 ? "+100%" : "0%"}
                     icon={DollarSign}
                     color="text-emerald-500"
                 />
                 <MetricCard
                     label="Operational Spend"
                     value={formatCurrency(totalExpenses)}
-                    trend="-2.4%"
+                    trend={totalExpenses > 0 ? "+100%" : "0%"}
                     icon={TrendingDown}
                     color="text-rose-500"
                 />
                 <MetricCard
                     label="Net Profit"
                     value={formatCurrency(profit)}
-                    trend="+18.7%"
+                    trend={profit > 0 ? "+Infinity%" : "0%"}
                     icon={TrendingUp}
                     color="text-blue-500"
                 />
                 <MetricCard
                     label="Profit Margin"
-                    value={`${((profit / totalWonRevenue) * 100).toFixed(1)}%`}
-                    trend="+5.1%"
+                    value={totalRevenue > 0 ? `${((profit / totalRevenue) * 100).toFixed(1)}%` : '0%'}
+                    trend="Stable"
                     icon={Activity}
                     color="text-indigo-500"
                 />
@@ -238,11 +262,15 @@ function FinanceSection({ data }: { data: any }) {
 // --- 2. SALES SECTION ---
 function SalesSection({ data }: { data: any }) {
     const funnelData = [
-        { name: 'Leads', value: data.leads.length || 100, color: '#3b82f6' },
-        { name: 'Contacted', value: data.leads.filter((l: any) => l.stage === 'contacted').length || 65, color: '#8b5cf6' },
-        { name: 'Qualified', value: data.leads.filter((l: any) => l.stage === 'qualified').length || 32, color: '#10b981' },
-        { name: 'Won', value: data.leads.filter((l: any) => l.stage === 'won').length || 18, color: '#f59e0b' },
+        { name: 'Leads', value: data.leads.length, color: '#3b82f6' },
+        { name: 'Contacted', value: data.leads.filter((l: any) => l.stage === 'contacted').length, color: '#8b5cf6' },
+        { name: 'Qualified', value: data.leads.filter((l: any) => l.stage === 'qualified').length, color: '#10b981' },
+        { name: 'Won', value: data.leads.filter((l: any) => l.stage === 'won' || l.stage === 'closed').length, color: '#f59e0b' },
     ]
+
+    const conversionEfficiency = funnelData[0].value > 0
+        ? ((funnelData[3].value / funnelData[0].value) * 100).toFixed(0)
+        : 0
 
     return (
         <div className="space-y-6">
@@ -272,7 +300,7 @@ function SalesSection({ data }: { data: any }) {
                     <div className="z-10">
                         <h4 className="text-lg font-bold opacity-80 uppercase tracking-widest text-xs mb-2">Conversion Efficiency</h4>
                         <div className="text-7xl font-black mb-4">
-                            {((funnelData[3].value / funnelData[0].value) * 100).toFixed(0)}%
+                            {conversionEfficiency}%
                         </div>
                         <p className="max-w-[200px] text-sm opacity-90 mx-auto">Overall win rate from initial inquiry to closed-won status.</p>
                     </div>
@@ -288,10 +316,10 @@ function SalesSection({ data }: { data: any }) {
 // --- 3. PROJECT SECTION ---
 function ProjectSection({ data }: { data: any }) {
     const projectStats = [
-        { name: 'Active', value: data.projects.filter((p: any) => p.status === 'in-progress').length || 8, fill: '#3b82f6' },
-        { name: 'Completed', value: data.projects.filter((p: any) => p.status === 'completed').length || 12, fill: '#10b981' },
-        { name: 'Delayed', value: 3, fill: '#ef4444' },
-        { name: 'Planning', value: 5, fill: '#f59e0b' },
+        { name: 'Active', value: data.projects.filter((p: any) => p.status === 'in-progress').length, fill: '#3b82f6' },
+        { name: 'Completed', value: data.projects.filter((p: any) => p.status === 'completed').length, fill: '#10b981' },
+        { name: 'Delayed', value: data.projects.filter((p: any) => p.status === 'on-hold').length, fill: '#ef4444' },
+        { name: 'Planning', value: data.projects.filter((p: any) => p.status === 'planning').length, fill: '#f59e0b' },
     ]
 
     return (
@@ -607,6 +635,18 @@ function SupportSection({ data }: { data: any }) {
         { name: 'Unhappy', value: 5, fill: '#ef4444' },
     ]
 
+    const ticketTrends = useMemo(() => {
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat']
+        const counts: any = { 'Sun': 0, 'Mon': 0, 'Tue': 0, 'Wed': 0, 'Thu': 0, 'Fri': 0, 'Sat': 0 }
+
+        data.tickets.forEach((t: any) => {
+            const day = days[new Date(t.createdAt).getDay()]
+            counts[day]++
+        })
+
+        return Object.keys(counts).map(day => ({ day, tickets: counts[day] }))
+    }, [data.tickets])
+
     return (
         <div className="grid lg:grid-cols-2 gap-6">
             <Card className="border-none shadow-sm">
@@ -619,15 +659,7 @@ function SupportSection({ data }: { data: any }) {
                 </CardHeader>
                 <CardContent className="h-[300px]">
                     <ResponsiveContainer width="100%" height="100%">
-                        <LineChart data={[
-                            { day: 'Mon', tickets: data.tickets.length > 0 ? Math.floor(data.tickets.length * 0.2) : 12 },
-                            { day: 'Tue', tickets: data.tickets.length > 0 ? Math.floor(data.tickets.length * 0.3) : 18 },
-                            { day: 'Wed', tickets: data.tickets.length > 0 ? Math.floor(data.tickets.length * 0.25) : 15 },
-                            { day: 'Thu', tickets: data.tickets.length > 0 ? Math.floor(data.tickets.length * 0.5) : 32 },
-                            { day: 'Fri', tickets: data.tickets.length > 0 ? Math.floor(data.tickets.length * 0.4) : 24 },
-                            { day: 'Sat', tickets: data.tickets.length > 0 ? Math.floor(data.tickets.length * 0.1) : 8 },
-                            { day: 'Sun', tickets: data.tickets.length > 0 ? Math.floor(data.tickets.length * 0.05) : 4 },
-                        ]}>
+                        <LineChart data={ticketTrends}>
                             <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                             <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 12, fontWeight: 'bold' }} />
                             <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 12 }} />
