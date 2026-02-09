@@ -10,22 +10,14 @@ const { errorHandler } = require('./middleware/errorMiddleware');
 const app = express();
 const PORT = process.env.PORT || 5000;
 
-// Connect to Database
-connectDB().then(async () => {
-    // Seed Demo Users if needed
+// Middleware to ensure DB connection
+app.use(async (req, res, next) => {
     try {
-        const hashedPassword = bcrypt.hashSync('password', 10);
-        const demoUsers = [
-            { name: 'Demo Owner', email: 'owner@example.com', password: hashedPassword, role: 'owner', designation: 'Founder' },
-            { name: 'Demo Admin', email: 'admin@example.com', password: hashedPassword, role: 'admin', designation: 'Manager' },
-            { name: 'Demo Employee', email: 'employee@example.com', password: hashedPassword, role: 'employee', designation: 'Developer' }
-        ];
-        for (const u of demoUsers) {
-            await User.findOneAndUpdate({ email: u.email }, u, { upsert: true, new: true });
-        }
-        console.log('>>> Demo Users Synchronized <<<');
-    } catch (err) {
-        console.error('Seeding error:', err.message);
+        await connectDB();
+        next();
+    } catch (error) {
+        console.error('Database connection failed:', error);
+        res.status(500).json({ message: 'Database Connection Error', error: error.message });
     }
 });
 
