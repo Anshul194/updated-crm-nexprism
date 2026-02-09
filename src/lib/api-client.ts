@@ -6,7 +6,7 @@ const getBaseURL = () => {
     if (envURL) return envURL;
 
     // 2. Production: Use relative path (avoids localhost security issues)
-    if (import.meta.env.PROD) {
+    if ((import.meta as any).env.PROD) {
         return '/api';
     }
 
