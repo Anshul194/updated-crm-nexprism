@@ -7,7 +7,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 
 import { Label } from '@/components/ui/label'
-import { ArrowLeft, Mail, Phone, Briefcase, MapPin, User, FileText, Shield, Edit, Save, X } from 'lucide-react'
+import { ArrowLeft, Mail, Phone, Briefcase, MapPin, User, FileText, Shield, Edit, Save } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
