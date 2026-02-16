@@ -12,6 +12,7 @@ import {
 } from 'lucide-react'
 import { formatCurrency, getInitials } from '@/lib/utils'
 import api from '@/lib/api-client'
+import { VisitorSessionsTimeline } from '@/components/contacts/visitor-sessions-timeline'
 
 export function ClientDetailPage() {
     const { id } = useParams()
@@ -189,6 +190,7 @@ export function ClientDetailPage() {
                     <TabsTrigger value="overview">Overview</TabsTrigger>
                     <TabsTrigger value="projects">Projects ({clientProjects.length})</TabsTrigger>
                     <TabsTrigger value="invoices">Invoices ({clientInvoices.length})</TabsTrigger>
+                    <TabsTrigger value="activity">Web Activity</TabsTrigger>
                     <TabsTrigger value="notes">Notes</TabsTrigger>
                 </TabsList>
 
@@ -300,6 +302,10 @@ export function ClientDetailPage() {
                             )}
                         </CardContent>
                     </Card>
+                </TabsContent>
+
+                <TabsContent value="activity">
+                    <VisitorSessionsTimeline email={client.email} />
                 </TabsContent>
 
                 <TabsContent value="notes">

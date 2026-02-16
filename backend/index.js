@@ -1,6 +1,8 @@
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
+const http = require('http');
+const { Server } = require('socket.io');
 if (process.env.NODE_ENV !== 'production') {
     require('dotenv').config();
 }
@@ -10,6 +12,16 @@ const User = require('./models/User');
 const { errorHandler } = require('./middleware/errorMiddleware');
 
 const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+    cors: {
+        origin: "*",
+        methods: ["GET", "POST"]
+    }
+});
+
+require('./socket/chatSocket')(io);
+
 const PORT = process.env.PORT || 5000;
 
 // Middleware to ensure DB connection
@@ -55,12 +67,20 @@ const routes = {
     'lead-forms': require('./routes/leadFormRoutes'),
     attendance: require('./routes/attendanceRoutes'),
     payroll: require('./routes/payrollRoutes'),
-    notifications: require('./routes/notificationRoutes')
+    notifications: require('./routes/notificationRoutes'),
+    chat: require('./routes/chatRoutes'),
+    tracking: require('./routes/trackingRoutes'),
+    test: require('./routes/testRoutes')
 };
 
 Object.entries(routes).forEach(([path, handler]) => {
     app.use(`/api/${path}`, handler);
 });
+
+// Serve static widget file
+const path = require('path');
+app.use('/public', express.static(path.join(__dirname, 'public')));
+
 
 app.get('/', (req, res) => res.send('Nexprism CRM API v1.0 - Operational'));
 
@@ -68,7 +88,7 @@ app.get('/', (req, res) => res.send('Nexprism CRM API v1.0 - Operational'));
 app.use(errorHandler);
 
 if (process.env.NODE_ENV !== 'production' || !process.env.VERCEL) {
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
         console.log(`\n🚀 Server established on port ${PORT}`);
         console.log(`📡 Local: http://localhost:${PORT}`);
         console.log(`🔧 Environment: ${process.env.NODE_ENV || 'development'}\n`);

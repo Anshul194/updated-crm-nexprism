@@ -32,6 +32,9 @@ import { ExpensesPage } from './pages/expenses'
 import { SalaryPage } from './pages/salary'
 import { AttendancePage } from './pages/attendance'
 import { PublicLeadForm } from './pages/public/lead-form'
+import { ChatPage } from './pages/chat'
+import { ChatWidgetsPage } from './pages/chat/widgets'
+import UserTrackerPage from './pages/user-tracker'
 
 
 export function AppRoutes() {
@@ -80,6 +83,9 @@ export function AppRoutes() {
 
                 {/* Support & Analysis */}
                 <Route path="tickets" element={<TicketsPage />} />
+                <Route path="chat" element={<ChatPage />} />
+                <Route path="chat/widgets" element={<ChatWidgetsPage />} />
+                <Route path="user-tracker" element={<UserTrackerPage />} />
                 <Route path="reports" element={<ReportsPage />} />
 
                 <Route path="files" element={<FilesPage />} />

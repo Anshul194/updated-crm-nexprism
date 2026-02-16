@@ -14,7 +14,9 @@ import {
     Target,
     ChevronLeft,
     ChevronRight,
-    LogOut
+    LogOut,
+    MessageSquare,
+    Activity
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
@@ -90,6 +92,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
 
     const navItems = [
         { name: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+        { name: 'User Tracker', href: '/user-tracker', icon: Activity },
         { name: 'Clients', href: '/clients', icon: Users },
         { name: 'Projects', href: '/projects', icon: Briefcase },
         { name: 'Tasks', href: '/tasks', icon: CheckSquare },
@@ -101,6 +104,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
         { name: 'Expenses', href: '/expenses', icon: Wallet },
         { name: 'Payroll', href: '/salary', icon: Wallet },
         { name: 'Support Tickets', href: '/tickets', icon: LifeBuoy },
+        { name: 'Live Chat', href: '/chat', icon: MessageSquare },
         { name: 'Reports', href: '/reports', icon: BarChart },
         { name: 'Files', href: '/files', icon: FolderOpen },
         { name: 'Settings', href: '/settings', icon: Settings },
@@ -111,6 +115,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
         const p = permissions
         switch (item.name) {
             case 'Dashboard': return !!p.dashboard?.view
+            case 'User Tracker': return true
             case 'Clients': return !!p.clients?.view
             case 'Projects': return !!p.projects?.view
             case 'Tasks': return !!p.tasks?.view
@@ -122,6 +127,7 @@ export function Sidebar({ collapsed, setCollapsed, mobileOpen, setMobileOpen }: 
             case 'Expenses': return !!p.finance?.view
             case 'Payroll': return true // Everyone can see their own
             case 'Support Tickets': return !!p.tasks?.view
+            case 'Live Chat': return true // Everyone (or restricted)
             case 'Reports': return !!p.finance?.view
             case 'Files': return !!p.projects?.view
             case 'Settings': return !!p.settings?.view
