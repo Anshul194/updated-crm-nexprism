@@ -15,6 +15,7 @@ export const mapProject = (p: any): Project => ({
     startDate: new Date(p.startDate),
     milestones: p.milestones || [],
     pmId: p.pmId || 'u2',
+    members: p.members || [],
     priority: p.priority,
     createdAt: new Date(p.createdAt),
     updatedAt: new Date(p.updatedAt || p.createdAt),

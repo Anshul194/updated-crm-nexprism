@@ -74,6 +74,7 @@ export function NewProjectPage() {
                 startDate: new Date(savedProject.startDate),
                 dueDate: new Date(savedProject.dueDate),
                 pmId: savedProject.pmId || 'u2',
+                members: savedProject.members || [],
                 progress: savedProject.progress || 0
             }
 

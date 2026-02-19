@@ -3,6 +3,13 @@ import { ComposableMap, Geographies, Geography } from "react-simple-maps";
 import { scaleLinear } from "d3-scale";
 import api from "@/lib/api-client";
 
+// Type declaration for react-simple-maps if types are not available
+declare module "react-simple-maps" {
+    export const ComposableMap: any;
+    export const Geographies: any;
+    export const Geography: any;
+}
+
 const geoUrl = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 export const GeoMapChart = () => {
@@ -62,8 +69,8 @@ export const GeoMapChart = () => {
         <div className="w-full h-[400px] bg-sky-50/30 rounded-lg overflow-hidden relative border border-blue-100">
             <ComposableMap projectionConfig={{ scale: 140 }}>
                 <Geographies geography={geoUrl}>
-                    {({ geographies }) =>
-                        geographies.map((geo) => {
+                    {({ geographies }: { geographies: any[] }) =>
+                        geographies.map((geo: any) => {
                             const countryData = data.find((s: any) =>
                                 s.id === geo.properties.name ||
                                 s.id === geo.id ||
